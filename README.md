@@ -86,4 +86,5 @@ For trying one part of the game directly:
 - Backgrounds: AI-generated pixel art. Characters and objects are drawn in code.
 - *De Nachtwacht*: Rembrandt van Rijn, 1642 (public domain).
 - Libraries: p5.js (LGPL), PeerJS (MIT). Fonts: Press Start 2P and VT323 (SIL Open Font License).
+- Desktop version: controller support through [Jamepad](https://github.com/williamahartman/Jamepad), which bundles SDL2 (zlib License). The desktop version has no online co-op; use the browser version for that.
 - License: [MIT](LICENSE)
