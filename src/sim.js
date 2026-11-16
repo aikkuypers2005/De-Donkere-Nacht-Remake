@@ -479,6 +479,13 @@
     d.st = 'fly'; d.t = 0; d.y = G - 4; d.vx = -g.face * 1.5; d.vy = -5;
     ev(S, 'squeak'); wcSay(S, 'w_slip');
   }
+  // Only a duck a zombie has kicked makes him slip. One that is just lying there squirts away from his foot.
+  function duckUnder(S, g, d) {
+    if (d.k) { slip(S, g, d); return true; }
+    d.vx = (d.x < g.x ? -1 : 1) * 2.2;
+    ev(S, 'squeak'); wcSay(S, 'w_miss');
+    return false;
+  }
   function toWalk(g, ph) { g.st = 'walk'; g.t = 0; g.cd = G_CD[ph] + rnd() * 60; }
 
   SC.giant = {
@@ -504,14 +511,14 @@
       g.t++; if (g.inv > 0) g.inv--;
       g.mv = false;
       const ducks = S.ents.filter(e => e.type === 'duck' && e.st !== 'fly');
-      const under = ducks.find(d => d.st === 'ground' && Math.abs(d.x - g.x) < 20);
+      const under = ducks.find(d => d.st === 'ground' && Math.abs(d.x - g.x) < 20 && (d.k || Math.abs(d.vx) < 1));
 
       if (g.st === 'walk') {
         const d = tg ? tg.x - g.x : 0;
         if (Math.abs(d) > 2) g.face = d > 0 ? 1 : -1;
         if (tg && Math.abs(d) > 6) { g.x += g.face * G_SPEED[ph]; g.walk += G_SPEED[ph]; g.mv = true; }
         g.cd -= tg && Math.abs(d) < 70 ? 3 : 1;      // close by, he loses patience faster
-        if (under) slip(S, g, under);
+        if (under && duckUnder(S, g, under)) { /* he slips */ }
         else if (g.cd <= 0 && tg) {
           const ad = Math.abs(d);
           if (ad < 18 || ad > 110 || rnd() < 0.4) { g.st = 'stomp'; g.t = 0; }
@@ -520,7 +527,7 @@
         }
       } else if (g.st === 'stomp') {
         if (g.t === STOMP_UP) {
-          if (under) slip(S, g, under);          // the foot comes down on a duck
+          if (under && duckUnder(S, g, under)) { /* the foot comes down on a kicked duck */ }
           else {
             S.shake = 12; ev(S, 'thud'); ev(S, 'rumble');
             S.ents.push({ type: 'shock', x: g.x - 20, vx: -2.4 }, { type: 'shock', x: g.x + 20, vx: 2.4 });
@@ -546,7 +553,7 @@
           g.x += clamp(want - g.x, -2, 2);
         }
         g.fx = g.x + g.face * REACH;
-        if (under) slip(S, g, under);
+        if (under && duckUnder(S, g, under)) { /* he slips */ }
         else {
           if (g.t === FIST_UP) {
             S.shake = 10; ev(S, 'thud');

@@ -763,8 +763,9 @@
     if (S.scene === 'giant') {
       const g = S.ents.find(e => e.type === 'giant');
       if (g && g.st === 'roar' && g.t < 55) T(tx.roar, Math.max(80, Math.min(W - 80, g.x)), G - 134 + (Math.floor(t / 3) % 2), '#ffffff', 'ps', 1, 2);
-      // the Laughing Toilet heckles from the stands (above the giant's head, under the goal)
-      if (v.wsT > 0 && tx[v.ws]) { const s = tx[v.ws], w = measure(s, 'vt'); T(s, Math.min(sim.WC_X, W - 4 - w / 2), 58, '#7ec8f0', 'vt', 1); }
+      // the Laughing Toilet heckles from the stands (above the giant's head, under the goal).
+      // Positioned by the width of the text image itself, so the whole line stays on screen.
+      if (v.wsT > 0 && tx[v.ws]) { const s = tx[v.ws], w = textImg(s, 'vt', '#7ec8f0').width + 1; T(s, Math.min(sim.WC_X + w / 2, W - 4), 58, '#7ec8f0', 'vt', 2); }
     }
     if (S.msgT > 0 && S.msg) T(tx[S.msg], 240, 62, '#f8d040', 'vt', 1);
     if (S.hint) {

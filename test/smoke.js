@@ -222,7 +222,7 @@ for (const id of sim.ORDER) {
     lastHp = g.hp; lastSt = g.st;
     if (s.mode === 'play') sunAtWin = s.v.sun;
   } });
-  check('giant beaten with ducks and head bites', f > 0 && S.mode === 'end' && slips >= 4 && kickSlips >= 1 && headBites >= 17 && !hpWhileUp && sunAtWin < 1,
+  check('giant beaten with ducks and head bites', f > 0 && S.mode === 'end' && slips >= 4 && kickSlips === slips && headBites >= 17 && !hpWhileUp && sunAtWin < 1,
     f + ' frames, ' + kicks + ' kicks, ' + slips + ' slips (' + kickSlips + ' on a kicked duck), ' + headBites + ' head bites, sun ' + sunAtWin.toFixed(2) + ' at the win');
 }
 
@@ -294,7 +294,7 @@ for (const id of sim.ORDER) {
   try {
     for (; frames < 15000; frames++) {
       const g = S.ents.find(e => e.type === 'giant');
-      if (g && frames % 300 === 0 && g.st === 'walk') { S.ents.push({ type: 'duck', x: g.x, y: G, vx: 0, vy: 0, st: 'ground', t: 0, k: 0 }); falls++; }
+      if (g && frames % 300 === 0 && g.st === 'walk') { S.ents.push({ type: 'duck', x: g.x, y: G, vx: 0, vy: 0, st: 'ground', t: 0, k: 1 }); falls++; }
       for (const p of S.players) { if (p.down) continue; p.hp = 3; }
       sim.step(S, [r(), r()]);
       if (frames % 50 === 0) {
@@ -306,6 +306,22 @@ for (const id of sim.ORDER) {
     }
   } catch (e) { err = e; }
   check('random co-op input in the giant fight with stuns', !err, err ? err.stack.split('\n').slice(0, 3).join(' | ') : frames + ' frames, ' + falls + ' ducks dropped, mode ' + S.mode);
+}
+
+// 10b. Nobody touches a key (the zombie cannot be hurt, so the run lasts): ducks the toilet throws are never
+//      kicked, so he must never slip, however often he walks onto one.
+{
+  const S = sim.newGame({ players: 1, scene: 'giant' });
+  const seen = { n: S.evN };
+  let stunned = false, squeaks = 0;
+  for (let f = 0; f < 9000; f++) {
+    const p = S.players[0]; p.hp = 3; p.down = 0; p.inv = 2;
+    sim.step(S, [{ mx: 0, jump: false, act: false }]);
+    for (const n of newEvents(S, seen)) if (n === 'squeak') squeaks++;
+    const g = S.ents.find(e => e.type === 'giant');
+    if (g && (g.st === 'slip' || g.st === 'down')) stunned = true;
+  }
+  check('without kicks the giant never slips', !stunned && S.ents.find(e => e.type === 'giant').hp === 1000, '9000 frames, ' + squeaks + ' ducks squirted away from his feet');
 }
 
 // 11. Fairness alone: a careful bot without cheats (the AI partner cannot help). It is not perfect,
