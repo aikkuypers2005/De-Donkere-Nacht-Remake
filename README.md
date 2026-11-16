@@ -1,18 +1,21 @@
-# De Donkere Nacht 2
+# De Donkere Nacht Remake
 
-A pixel-art tribute to *De Donkere Nacht*, the Processing game Job & Aik made at De Jonge Onderzoekers Groningen in 2016. Built with p5.js, so it runs in a browser.
+A full browser-based pixel-art remake of [*De Donkere Nacht*](https://github.com/aikkuypers2005/De-Donkere-Nacht), the Processing game Job & Aik made at De Jonge Onderzoekers Groningen in 2016. Built with p5.js so anyone can play it directly in the browser (solo, local co-op, or online co-op).
 
 Two guards of the Night Watch rise as zombies on the darkest night of the year to get back the piece a thief cut out of their painting, before the sun comes up.
 
 ## Play
 
-```
+### Online (GitHub Pages)
+Once GitHub Pages is enabled on this repository, you can play directly at:
+`https://aikkuypers2005.github.io/De-Donkere-Nacht-Remake/`
+
+### Locally
+```bash
 node serve.js
 ```
 
 Then open http://localhost:8123. Opening `index.html` directly from disk does not work, because browsers block the images that way.
-
-The folder is a plain static site, so it can also be hosted as-is (for example on GitHub Pages).
 
 ## Controls
 
@@ -77,3 +80,4 @@ For trying one part of the game directly:
 - Backgrounds: AI-generated pixel art. Characters and objects are drawn in code.
 - *De Nachtwacht*: Rembrandt van Rijn, 1642 (public domain).
 - Libraries: p5.js (LGPL), PeerJS (MIT). Fonts: Press Start 2P and VT323 (SIL Open Font License).
+- License: [MIT](LICENSE)
