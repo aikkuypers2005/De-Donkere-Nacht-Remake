@@ -23,7 +23,15 @@
     return { id: i, x: 30 + i * 22, y: G, vx: 0, vy: 0, face: 1, g: true, hp: 3, inv: 0, bite: 0, bh: false,
       down: 0, carry: 0, kb: 0, stun: 0, pj: false, pa: false, ai: false, blk: false, jumped: false, gold: 0, chick: 0, idle: 0 };
   }
-  function ev(S, s) { S.evs.push({ n: ++S.evN, s }); if (S.evs.length > 14) S.evs.shift(); }
+  // A sound or effect event. x, y (and a value v) are optional, so effects show up in the right place
+  // for both online players. Old callers just pass the name.
+  function ev(S, s, x, y, v) {
+    const e = { n: ++S.evN, s };
+    if (typeof x === 'number' && typeof y === 'number') { e.x = Math.round(x); e.y = Math.round(y); }
+    if (typeof v === 'number') e.v = v;
+    S.evs.push(e);
+    if (S.evs.length > 14) S.evs.shift();
+  }
   function say(S, k) { S.msg = k; S.msgT = 150; }
   // A zombie says something in a bubble. once: only the first time in this game.
   function chat(S, k, who, once) {
@@ -329,7 +337,7 @@
         if (!S.v.roll && bites(p, { x: ROLL_X - 6, y: 190, w: 12, h: 12 })) { S.v.roll = 1; ev(S, 'unroll'); chat(S, 'z_roll', p.id); continue; }
         if (bites(p, { x: 370, y: 176, w: 28, h: 40 })) {
           if (open && wc.inv <= 0) {
-            wc.hp = Math.max(0, wc.hp - power(p)); wc.inv = 30; wc.st = 'ouch'; wc.t = 0; S.shake = 8; ev(S, 'bosshit');
+            wc.hp = Math.max(0, wc.hp - power(p)); wc.inv = 30; wc.st = 'ouch'; wc.t = 0; S.shake = 8; ev(S, 'bosshit', wc.x, G - 44, power(p));
             if (wc.hp <= 0) { remove(S, e => e.type !== 'wc'); complete(S); return; }
           } else ev(S, 'clang');
         }
@@ -492,14 +500,14 @@
       if (th.y >= G) {
         th.y = G; th.vy = 0;
         if (!th.g && th.stomp) {
-          th.stomp = false; S.shake = 10; ev(S, 'thud');
+          th.stomp = false; S.shake = 10; ev(S, 'thud', th.x, G, 2);
           S.ents.push({ type: 'shock', x: th.x - 8, vx: -2.6 }, { type: 'shock', x: th.x + 8, vx: 2.6 });
         }
         th.g = true;
       }
       for (const p of humans(S)) {
         if (th.inv <= 0 && bites(p, { x: th.x - 5, y: th.y - 26, w: 10, h: 26 })) {
-          th.hp -= 60 * power(p); th.inv = 35; th.hits++; S.shake = 6; ev(S, 'bosshit'); v.cheer = 50;
+          th.hp -= 60 * power(p); th.inv = 35; th.hits++; S.shake = 6; ev(S, 'bosshit', th.x, th.y - 34, 60 * power(p)); v.cheer = 50;
           th.x = Math.max(16, Math.min(W - 16, th.x + p.face * 6));
           if (th.hp <= 0) { th.hp = 0; remove(S, e => e.type !== 'thief'); complete(S); return; }
           // two bites in a row and he jumps away
@@ -513,7 +521,7 @@
         let box = null;
         if (e.type === 'rock') {
           e.x += e.vx; e.y += e.vy; e.vy += 0.18;
-          if (e.y >= G - 3) { e.dead = 1; ev(S, 'thud'); }
+          if (e.y >= G - 3) { e.dead = 1; ev(S, 'thud', e.x, G, 1); }
           box = { x: e.x - 4, y: e.y - 4, w: 8, h: 8 };
         } else if (e.type === 'fball') { e.x += e.vx; e.t++; box = { x: e.x - 5, y: e.y - 5, w: 10, h: 10 }; }
         else if (e.type === 'shock') { e.x += e.vx; box = { x: e.x - 6, y: G - 10, w: 12, h: 10 }; }
@@ -595,7 +603,7 @@
         if (g.t === STOMP_UP) {
           if (under && duckUnder(S, g, under)) { /* the foot comes down on a kicked duck */ }
           else {
-            S.shake = 12; ev(S, 'thud'); ev(S, 'rumble');
+            S.shake = 12; ev(S, 'thud', g.x + g.face * 8, G, 3); ev(S, 'rumble');
             S.ents.push({ type: 'shock', x: g.x - 20, vx: -2.4 }, { type: 'shock', x: g.x + 20, vx: 2.4 });
             // stones tumble out of the stands, one near each zombie
             const pl = alive(S), n = ph === 1 ? 2 : 3, xs = [];
@@ -622,7 +630,7 @@
         if (under && duckUnder(S, g, under)) { /* he slips */ }
         else {
           if (g.t === FIST_UP) {
-            S.shake = 10; ev(S, 'thud');
+            S.shake = 10; ev(S, 'thud', g.fx, G, 2);
             for (const p of humans(S)) if (!p.down && p.y > G - 30 && Math.abs(p.x - g.fx) < 15) hurt(S, p, p.x < g.fx ? -1 : 1);
           }
           if (g.t >= FIST_UP + 30) toWalk(g, ph);
@@ -631,7 +639,7 @@
         const r = lieRange(g);
         g.x += g.face * 0.8;
         g.x += clamp(clamp(g.x, r[0], r[1]) - g.x, -1.5, 1.5);
-        if (g.t >= 36) { g.st = 'down'; g.t = 0; g.bites = 0; S.shake = 14; ev(S, 'thud'); }
+        if (g.t >= 36) { g.st = 'down'; g.t = 0; g.bites = 0; S.shake = 14; ev(S, 'thud', g.x - g.face * 10, G, 4); }
       } else if (g.st === 'down') {
         if (g.t >= STUN || (g.bites >= MAX_BITES && g.inv <= 15)) { g.st = 'getup'; g.t = 0; wcSay(S, 'w_up'); }
       } else if (g.st === 'getup') {
@@ -666,7 +674,7 @@
         if (kicked) continue;
         if (down && bites(p, headBox(g))) {
           if (g.inv <= 0 && g.bites < MAX_BITES) {
-            g.hp -= 60 * power(p); g.inv = 35; g.bites++; S.shake = 6; ev(S, 'bosshit'); v.cheer = 50;
+            g.hp -= 60 * power(p); g.inv = 35; g.bites++; S.shake = 6; ev(S, 'bosshit', g.x - g.face * 48, G - 30, 60 * power(p)); v.cheer = 50;
             if (g.hp <= 0) { g.hp = 0; remove(S, e => e.type !== 'giant'); complete(S); return; }
           }
         } else if (bites(p, body)) ev(S, 'clang');
@@ -706,7 +714,7 @@
           }
         } else if (e.type === 'stone') {
           e.y += e.vy; e.vy += 0.16;
-          if (e.y >= G - 4) { e.dead = 1; ev(S, 'thud'); }
+          if (e.y >= G - 4) { e.dead = 1; ev(S, 'thud', e.x, G, 1); }
           box = { x: e.x - 5, y: e.y - 5, w: 10, h: 10 };
         } else if (e.type === 'shock') {
           e.x += e.vx;
@@ -854,8 +862,9 @@
     p.x = Math.max(lo, Math.min(hi, nx));
 
     // up and down, landing on the ground, on solid things and on branches
-    const oy = p.y;
+    const oy = p.y, wasG = p.g;
     p.vy = Math.min(6, p.vy + 0.32);
+    const fall = p.vy;
     p.y += p.vy; p.g = false;
     if (p.y >= G) { p.y = G; p.vy = 0; p.g = true; }
     if (p.vy >= 0) {
@@ -863,6 +872,7 @@
         if (oy <= s.y + 0.01 && p.y >= s.y && p.x + 5 > s.x && p.x - 5 < s.x + s.w) { p.y = s.y; p.vy = 0; p.g = true; }
       }
     }
+    if (p.g && !wasG && fall > 2) ev(S, 'land', p.x, p.y, p.id);   // for the dust puff and the squash (drawing only)
   }
 
   // Power-ups: falling or floating along, and picked up by touching (never by the follower when playing alone).

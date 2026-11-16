@@ -63,6 +63,7 @@ For trying one part of the game directly:
 | `src/text.js` | All Dutch and English text, and the cutscene scripts |
 | `src/sim.js` | The game rules (no drawing) |
 | `src/draw.js` | Pixel sprites, backgrounds, HUD, cutscenes |
+| `src/fx.js` | Dust, sparks, damage numbers and the little things that move in each scene (drawing only) |
 | `src/input.js` | Keyboard, mouse, controller |
 | `src/audio.js` | Music and sound effects |
 | `src/net.js` | Online co-op (PeerJS) |

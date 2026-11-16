@@ -201,6 +201,7 @@
     D.blit('grave', 30, G); D.blit('grave', 52, G); D.blit('tomb2', 420, 194);
     D.blit('z0_idle' + (Math.floor(t / 30) % 2), 40, G);
     D.blit('z1_idle' + (Math.floor(t / 30 + 1) % 2), 64, G);
+    if (DDN.fx) DDN.fx.title(t);                  // stars, the waving hand, the crow and the mist
     if (app === 'title') drawTitle();
     else if (app === 'controls') drawControls();
     else if (app === 'host') drawHost();

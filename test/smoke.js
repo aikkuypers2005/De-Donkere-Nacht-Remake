@@ -496,5 +496,42 @@ function run(S, n, inp) { for (let i = 0; i < n; i++) sim.step(S, [inp || NONE, 
     'idle ' + (started ? 'reached the gag' : 'did not start') + ', after one step of walking: idle ' + p.idle + ', moved ' + (p.x - x0).toFixed(1) + ' px');
 }
 
+// ---------------------------------------------------------------- stage 3: effects
+// 19. Events can carry a position (and a value) for the effects. They must survive the JSON round trip
+//     that online co-op does, old events without a position still work, and the list stays capped at 14.
+{
+  let S = sim.newGame({ players: 1, scene: 'giant' });
+  const kinds = {}, counted = new Set();
+  let longest = 0, bad = '', plain = 0;
+  const each = s => {
+    const copy = JSON.parse(JSON.stringify(s.evs));
+    longest = Math.max(longest, s.evs.length);
+    copy.forEach((e, i) => {
+      const o = s.evs[i];
+      if (e.n !== o.n || e.s !== o.s || e.x !== o.x || e.y !== o.y || e.v !== o.v) bad = JSON.stringify(o);
+      if (counted.has(s.scene + o.n)) return;
+      counted.add(s.scene + o.n);
+      if (typeof o.x !== 'number') { plain++; return; }
+      if (Number.isInteger(o.x) && Number.isInteger(o.y)) kinds[o.s] = (kinds[o.s] || 0) + 1; else bad = 'not whole pixels: ' + JSON.stringify(o);
+    });
+  };
+  play(S, scripts.giant, { god: true, max: 20000, each });
+  play(sim.newGame({ players: 1, scene: 'field' }), scripts.field, { god: true, each });       // the field bot always jumps
+  check('events with positions survive the JSON round trip', !bad && kinds.bosshit > 0 && kinds.thud > 0 && kinds.land > 0 && plain > 0 && longest <= 14,
+    Object.keys(kinds).map(k => k + ' ' + kinds[k]).join(', ') + ', ' + plain + ' without a position; longest list ' + longest + (bad ? '; bad: ' + bad : ''));
+}
+
+// 20. Drawing-only changes must not change the game: these two scripted scenes are fully predictable and
+//     take exactly as many frames as before stage 3, and the full game still takes a similar time.
+{
+  const field = play(sim.newGame({ players: 1, scene: 'field' }), scripts.field, { god: true });
+  const hall = play(sim.newGame({ players: 1, scene: 'hall' }), scripts.hall, { god: true });
+  const S = sim.newGame({ players: 1 });
+  let total = 0;
+  while (S.mode !== 'end') { const f = play(S, scripts[S.scene], { god: true }); if (f < 0) break; total += f; }
+  check('the game rules are unchanged by the effects', field === 462 && hall === 389 && S.mode === 'end' && total > 7000 && total < 14000,
+    'field ' + field + ' frames (was 462), hall ' + hall + ' (was 389), full game ' + Math.round(total / 60) + ' s (stage 2 runs: 159-167 s)');
+}
+
 console.log(failed ? '\n' + failed + ' check(s) failed' : '\nAll checks passed');
 process.exit(failed ? 1 : 0);
