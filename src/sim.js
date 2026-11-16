@@ -6,27 +6,45 @@
   const ORDER = ['field', 'forest', 'house', 'hall', 'bath', 'bed', 'chase', 'arena', 'giant'];
   const CHAPTERS = ['field', 'house', 'bath', 'bed', 'arena'];
   const DOOR = 364;                          // front door of the house
+  const ROLL_X = 300;                        // the toilet roll holder in the bathroom
   const CHASE_LEN = 5400;
   const SUN_FRAMES = 10800;                  // 3 minutes until sunrise
   const SUN_CAP = 0.4;                       // the giant fight starts at most this far into the sunrise
   const WC_X = 446, WC_Y = 172;              // the Laughing Toilet's seat in the arena stands
   const ZERO = { mx: 0, jump: false, act: false };
   const rnd = () => Math.random();
+  const GOLD_T = 480, CHICK_T = 600;         // gold paint 8 s, the chicken 10 s
+  const TALK_T = 150, TALK_GAP = 480;        // a speech bubble shows 2.5 s, at most one every 8 s
+  const IDLE_GAG = 360, IDLE_END = 480;      // after 6 s standing still his head drops off for 2 s
+  const URGENT = ['h_still', 'h_stomp', 'h_fist', 'h_head'];
+  const HAZARD = ['bat', 'crow', 'rat', 'blob', 'wave'];
 
   function mkPlayer(i) {
     return { id: i, x: 30 + i * 22, y: G, vx: 0, vy: 0, face: 1, g: true, hp: 3, inv: 0, bite: 0, bh: false,
-      down: 0, carry: 0, kb: 0, stun: 0, pj: false, pa: false, ai: false, blk: false, jumped: false };
+      down: 0, carry: 0, kb: 0, stun: 0, pj: false, pa: false, ai: false, blk: false, jumped: false, gold: 0, chick: 0, idle: 0 };
   }
   function ev(S, s) { S.evs.push({ n: ++S.evN, s }); if (S.evs.length > 14) S.evs.shift(); }
   function say(S, k) { S.msg = k; S.msgT = 150; }
+  // A zombie says something in a bubble. once: only the first time in this game.
+  function chat(S, k, who, once) {
+    if (once && S.said[k]) return false;
+    if (S.mode !== 'play' || S.talk || S.talkCd > 0 || S.msgT > 0 || URGENT.includes(S.hint)) return false;
+    S.talk = { who: who === 0 || who === 1 ? who : (rnd() < 0.5 ? 0 : 1), k, t: TALK_T };
+    S.talkCd = TALK_GAP;
+    if (once) S.said[k] = 1;
+    return true;
+  }
   function humans(S) { return S.players.filter(p => !p.ai); }
   function alive(S) { return humans(S).filter(p => p.down === 0); }
   function pbox(p) { return { x: p.x - 5, y: p.y - 26, w: 10, h: 26 }; }
   function hit(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
+  // With the chicken in his hand a zombie bites twice as far.
   function biteBox(p) {
     if (p.down || p.bite < 6 || p.bite > 16) return null;
-    return { x: p.face > 0 ? p.x : p.x - 17, y: p.y - 26, w: 17, h: 24 };
+    const w = p.chick > 0 ? 34 : 17;
+    return { x: p.face > 0 ? p.x : p.x - w, y: p.y - 26, w, h: 24 };
   }
+  function power(p) { return p.chick > 0 ? 2 : 1; }     // bosses take double damage from a chicken bite
   // A bite that has not hit anything yet and overlaps box b.
   function bites(p, b) {
     const bb = biteBox(p);
@@ -40,14 +58,30 @@
     return best;
   }
   function hurt(S, p, dir) {
-    if (p.inv > 0 || p.down > 0 || p.ai) return false;
+    if (p.inv > 0 || p.down > 0 || p.ai || p.gold > 0) return false;
     p.hp--; p.inv = 90; p.kb = dir * 3; p.vy = -2.5; p.g = false;
     if (p.carry > 0) p.carry = 0;
     S.shake = 5; ev(S, 'hurt');
+    if (typeof S.v.boo === 'number') S.v.boo = 50;     // the ghost audience boos
     if (p.hp <= 0) { p.down = 1; ev(S, 'down'); }
+    else chat(S, rnd() < 0.5 ? 'z_hurt1' : 'z_hurt2', p.id);
     return true;
   }
   function remove(S, pred) { S.ents = S.ents.filter(e => !pred(e)); }
+  // A power-up lying in the world: 'brain', 'gold' or 'chick'. air: falling, vx: carried along (the chase).
+  function pow(S, kind, x, y, extra) { S.ents.push(Object.assign({ type: 'pow', kind, x, y, vx: 0, vy: 0, air: false, t: 0 }, extra || {})); }
+  // Standing still is only safe when nothing dangerous is near (for the head-drops-off gag).
+  function calm(S, p) {
+    const sc = SC[S.scene];
+    if (sc.running || S.scene === 'bath' || S.scene === 'arena' || S.scene === 'giant') return false;
+    return !S.ents.some(e => HAZARD.includes(e.type) && Math.abs(e.x - p.x) < 140);
+  }
+  // The ghost audience in the arena stands: cheering and booing fade out, now and then they do a wave.
+  function crowd(v) {
+    if (v.cheer > 0) v.cheer--;
+    if (v.boo > 0) v.boo--;
+    if (v.wave > 0) v.wave--; else if (rnd() < 1 / 700) v.wave = 150;
+  }
 
   // ------------------------------------------------------------------ scenes
   const SC = {};
@@ -57,12 +91,13 @@
     intro: 'intro', next: 'forest', chapter: 1,
     solids: [{ x: 140, y: 200, w: 14, h: 16, k: 'tomb' }, { x: 245, y: 194, w: 16, h: 22, k: 'tomb2' }],
     plats: [],
-    init(S) { S.v = { gate: 3, open: false }; },
+    init(S) { S.v = { gate: 3, open: false }; pow(S, 'chick', 278, G); },      // the chicken waits behind the second tombstone
     goal(S) { return S.v.open ? { k: 'g_go' } : { k: 'g_field' }; },
     maxX(S) { return S.v.open ? W + 10 : 392; },
     update(S) {
       const v = S.v, lead = humans(S)[0];
       S.hint = lead.x < 110 ? 'h_move' : lead.x < 275 ? 'h_jump' : !v.open ? 'h_bite' : null;
+      if (lead.x > 128) chat(S, 'z_tomb', lead.id, true);
       if (!v.open) for (const p of humans(S)) {
         if (bites(p, { x: 398, y: 170, w: 12, h: 46 })) {
           v.gate--; S.shake = 6; ev(S, 'hit');
@@ -80,6 +115,7 @@
     init(S) {
       S.v = { open: false, got: 0, spawn: 120,
         sc: [{ x: 75, y: 168 }, { x: 150, y: 140 }, { x: 205, y: 206 }, { x: 314, y: 132 }, { x: 395, y: 166 }] };
+      pow(S, 'gold', 328, 142);                    // gold paint on the end of the highest branch
     },
     goal(S) { return S.v.open ? { k: 'g_go' } : { k: 'g_forest', n: S.v.got, of: 5 }; },
     update(S) {
@@ -119,7 +155,11 @@
         } else { b.y -= 2.2; b.x += b.dir; }
         const box = { x: b.x - 6, y: b.y - 4, w: 12, h: 8 };
         for (const p of humans(S)) {
-          if (bites(p, box)) { b.dead = 1; ev(S, 'pop'); break; }
+          if (bites(p, box)) {
+            b.dead = 1; ev(S, 'pop'); chat(S, 'z_bat', p.id, true);
+            if (rnd() < 1 / 3) pow(S, 'brain', b.x, b.y, { air: true });   // one bat in three drops brains
+            break;
+          }
           if (!p.down && hit(pbox(p), box)) hurt(S, p, p.x < b.x ? -1 : 1);
         }
       }
@@ -135,6 +175,8 @@
     init(S) {
       S.v = { open: false, key: false };
       S.ents.push({ type: 'crow', x: 220, y: 150, dir: 1, hp: 2, t: 0, st: 0, cd: 220, inv: 0, tx: 0, ty: 0 });
+      S.ents.push({ type: 'gnome', x: 96, st: 'stand', dir: 1, t: 0 });   // a garden gnome by the bushes
+      pow(S, 'brain', 149, 182);                                           // brains on top of the high crate
     },
     goal(S) { return { k: S.v.key ? 'g_house2' : 'g_house' }; },
     interact(S, p) {
@@ -177,8 +219,16 @@
           for (const p of humans(S)) if (!p.down && hit(pbox(p), { x: c.x - 5, y: c.y - 5, w: 10, h: 10 })) {
             c.dead = 1; v.key = true; ev(S, 'pick'); say(S, 'm_key'); break;
           }
+        } else if (c.type === 'gnome') {
+          // bite the gnome and it shrieks and runs off. That is all it does.
+          if (c.st === 'stand') {
+            for (const p of humans(S)) if (bites(p, { x: c.x - 5, y: G - 14, w: 10, h: 14 })) {
+              c.st = 'run'; c.t = 0; c.dir = p.x < c.x ? 1 : -1; ev(S, 'shriek'); chat(S, 'z_gnome', p.id); break;
+            }
+          } else { c.t++; c.x += c.dir * 2.6; if (c.x < -20 || c.x > W + 20) c.dead = 1; }
         }
       }
+      if (v.key && S.msgT === 0) chat(S, 'z_key', null, true);
       remove(S, e => e.dead || (e.type === 'crow' && e.y < -20));
     }
   };
@@ -191,6 +241,7 @@
     init(S) {
       S.v = { open: false, lit: 0, rat: 240, doneT: 0,
         c: [{ x: 60, y: 192, lit: 1 }, { x: 168, y: 152, lit: 0 }, { x: 312, y: 182, lit: 0 }, { x: 398, y: 130, lit: 0 }] };
+      pow(S, 'gold', 374, 172);                    // gold paint on the shelf, right before the toilet fight
     },
     goal(S) { return { k: 'g_hall', n: S.v.lit, of: 3 }; },
     interact(S, p) {
@@ -200,7 +251,7 @@
         if (Math.abs(p.x - c.x) > 13 || dy < 0 || dy > 52) continue;
         if (c.lit) { p.carry = 480; ev(S, 'flame'); }
         else if (p.carry > 0) {
-          c.lit = 1; v.lit++; ev(S, 'light');
+          c.lit = 1; v.lit++; ev(S, 'light'); chat(S, 'z_candle', p.id, true);
           if (v.lit >= 3) v.doneT = 70;
         } else say(S, 'h_flame');
         return true;
@@ -213,6 +264,7 @@
       let carrying = false;
       for (const p of humans(S)) if (p.carry > 0) { carrying = true; if (--p.carry === 0) say(S, 'm_out'); }
       S.hint = carrying ? 'h_flame2' : 'h_flame';
+      chat(S, 'z_dark', null, true);
       const rats = S.ents.filter(e => e.type === 'rat');
       if (rats.length < 2 && --v.rat <= 0) {
         v.rat = 200 + rnd() * 80;
@@ -236,8 +288,9 @@
     intro: 'bath', outro: 'bathout', next: 'bed', chapter: 3,
     solids: [], plats: [],
     init(S) {
-      S.v = { open: false };
+      S.v = { open: false, roll: 0, paper: 0 };
       S.ents.push({ type: 'wc', x: 384, hp: 6, st: 'laugh', t: 0, n: 0, inv: 0 });
+      pow(S, 'brain', 340, G);                     // brains, right where the toilet spits
     },
     goal(S) { const wc = S.ents.find(e => e.type === 'wc'); return { k: 'g_bath', n: wc ? 6 - wc.hp : 6, of: 6 }; },
     maxX() { return 364; },
@@ -269,10 +322,14 @@
         if (wc.t > 35) { wc.st = 'laugh'; wc.t = 0; }
       }
       const open = wc.st === 'spit' || wc.st === 'tired';
+      chat(S, 'z_wc', null, true);
+      if (S.v.roll && S.v.paper < 150) S.v.paper = Math.min(150, S.v.paper + 2.5);
       for (const p of humans(S)) {
+        // the toilet roll on the wall: bite it and the paper unrolls across the floor, and stays there
+        if (!S.v.roll && bites(p, { x: ROLL_X - 6, y: 190, w: 12, h: 12 })) { S.v.roll = 1; ev(S, 'unroll'); chat(S, 'z_roll', p.id); continue; }
         if (bites(p, { x: 370, y: 176, w: 28, h: 40 })) {
           if (open && wc.inv <= 0) {
-            wc.hp--; wc.inv = 30; wc.st = 'ouch'; wc.t = 0; S.shake = 8; ev(S, 'bosshit');
+            wc.hp = Math.max(0, wc.hp - power(p)); wc.inv = 30; wc.st = 'ouch'; wc.t = 0; S.shake = 8; ev(S, 'bosshit');
             if (wc.hp <= 0) { remove(S, e => e.type !== 'wc'); complete(S); return; }
           } else ev(S, 'clang');
         }
@@ -297,7 +354,8 @@
     intro: 'bed', outro: 'bedout', next: 'chase', chapter: 4,
     solids: [], plats: [],
     init(S) {
-      S.v = { open: false, noise: 0, ph: 'snore', pt: 170, d: [{ x: 140, cd: 0 }, { x: 215, cd: 0 }, { x: 285, cd: 0 }] };
+      S.v = { open: false, noise: 0, ph: 'snore', pt: 170, mum: 0, d: [{ x: 140, cd: 0 }, { x: 215, cd: 0 }, { x: 285, cd: 0 }] };
+      pow(S, 'gold', 304, G);                      // gold paint just past the last squeaky duck
     },
     goal() { return { k: 'g_bed' }; },
     maxX() { return 342; },
@@ -306,7 +364,7 @@
       if (--v.pt <= 0) {
         if (v.ph === 'snore') { v.ph = 'stir'; v.pt = 40; ev(S, 'huh'); }
         else if (v.ph === 'stir') { v.ph = 'listen'; v.pt = 80; }
-        else { v.ph = 'snore'; v.pt = 110 + rnd() * 70; }
+        else { v.ph = 'snore'; v.pt = 110 + rnd() * 70; v.mum = (v.mum + 1) % 4; }   // he mumbles something new in his sleep
       }
       if (v.ph === 'snore' && S.tick % 70 === 0) ev(S, 'snore');
       const hs = alive(S);
@@ -315,13 +373,14 @@
       v.noise = Math.max(0, v.noise - 0.12);
       for (const d of v.d) {
         if (d.cd > 0) { d.cd--; continue; }
-        for (const p of hs) if (p.g && Math.abs(p.x - d.x) < 6) { v.noise += 40; d.cd = 50; ev(S, 'squeak'); break; }
+        for (const p of hs) if (p.g && Math.abs(p.x - d.x) < 6) { v.noise += 40; d.cd = 50; ev(S, 'squeak'); chat(S, 'z_duck', p.id); break; }
       }
       S.hint = v.ph === 'snore' ? 'h_walk' : 'h_still';
       if (v.noise >= 100) {
         v.noise = 0; v.ph = 'snore'; v.pt = 170; ev(S, 'alarm'); say(S, 'm_caught'); S.shake = 10;
         for (const p of hs) {
-          p.hp--; p.inv = 90; p.x = 30 + p.id * 22; p.y = G; p.vy = 0;
+          if (!p.gold) p.hp--;                     // gold paint keeps you safe, but you still go back
+          p.inv = 90; p.x = 30 + p.id * 22; p.y = G; p.vy = 0;
           if (p.hp <= 0) { p.down = 1; ev(S, 'down'); }
         }
         for (const p of S.players) if (p.ai) { p.x = 52; p.y = G; }
@@ -335,7 +394,7 @@
   SC.chase = {
     next: 'arena', chapter: 4, running: true,
     solids: [], plats: [],
-    init(S) { S.v = { open: false, dist: 0, sp: 100, thr: 0 }; for (const p of S.players) p.x = 90 + p.id * 26; },
+    init(S) { S.v = { open: false, dist: 0, sp: 100, thr: 0, pw: 0 }; for (const p of S.players) p.x = 90 + p.id * 26; },
     goal(S) { return { k: 'g_chase', bar: S.v.dist / CHASE_LEN }; },
     minX() { return 10; },
     maxX() { return 300; },
@@ -343,6 +402,9 @@
       const v = S.v, prog = v.dist / CHASE_LEN;
       v.dist += 2; if (v.thr > 0) v.thr--;
       if (v.dist >= CHASE_LEN) { complete(S); return; }
+      chat(S, 'z_chase', null, true);
+      // halfway, brains come floating along at jumping height
+      if (!v.pw && v.dist >= 2600) { v.pw = 1; pow(S, 'brain', W + 10, G - 34, { vx: -2 }); }
       if (--v.sp <= 0 && prog < 0.95) {
         v.sp = 105 - 45 * prog + rnd() * 30;
         const r = rnd(), t = alive(S)[0];
@@ -382,13 +444,15 @@
     intro: 'arena', outro: 'turn', next: 'giant', chapter: 5,
     solids: [], plats: [],
     init(S) {
-      S.v = { open: false, sun: 0, burn: false };
+      S.v = { open: false, sun: 0, burn: false, cheer: 0, boo: 0, wave: 0 };
       S.ents.push({ type: 'thief', x: 400, y: G, vx: 0, vy: 0, g: true, face: -1, hp: 1000, st: 'run', t: 0, n: 0, inv: 0, hits: 0, stomp: false });
+      pow(S, 'chick', 456, G);                     // the chicken, behind the thief in the far corner
     },
     goal(S) { return { k: 'g_arena' }; },
     update(S) {
       const v = S.v, th = S.ents.find(e => e.type === 'thief');
       v.sun += 1 / SUN_FRAMES;
+      crowd(v);
       if (v.sun >= 1 && !v.burn) {
         v.burn = true; ev(S, 'burn');
         for (const p of humans(S)) if (!p.down) { p.hp = 0; p.down = 1; }
@@ -435,7 +499,7 @@
       }
       for (const p of humans(S)) {
         if (th.inv <= 0 && bites(p, { x: th.x - 5, y: th.y - 26, w: 10, h: 26 })) {
-          th.hp -= 60; th.inv = 35; th.hits++; S.shake = 6; ev(S, 'bosshit');
+          th.hp -= 60 * power(p); th.inv = 35; th.hits++; S.shake = 6; ev(S, 'bosshit'); v.cheer = 50;
           th.x = Math.max(16, Math.min(W - 16, th.x + p.face * 6));
           if (th.hp <= 0) { th.hp = 0; remove(S, e => e.type !== 'thief'); complete(S); return; }
           // two bites in a row and he jumps away
@@ -477,7 +541,7 @@
   function slip(S, g, d) {
     g.st = 'slip'; g.t = 0; g.fx = 0;
     d.st = 'fly'; d.t = 0; d.y = G - 4; d.vx = -g.face * 1.5; d.vy = -5;
-    ev(S, 'squeak'); wcSay(S, 'w_slip');
+    ev(S, 'squeak'); wcSay(S, 'w_slip'); S.v.cheer = 50; chat(S, 'z_slip');
   }
   // Only a duck a zombie has kicked makes him slip. One that is just lying there squirts away from his foot.
   function duckUnder(S, g, d) {
@@ -492,7 +556,7 @@
     outro: 'ending', chapter: 5,
     solids: [], plats: [],
     init(S) {
-      S.v = { open: false, sun: S.sun0, burn: false, dt: 90, ws: 'w_h1', wsT: 150, wt: 0 };
+      S.v = { open: false, sun: S.sun0, burn: false, dt: 90, ws: 'w_h1', wsT: 150, wt: 0, cheer: 0, boo: 0, wave: 0 };
       S.ents.push({ type: 'giant', x: 380, face: -1, hp: 1000, st: 'roar', t: 0, inv: 0, cd: 160, bites: 0, walk: 0, mv: false, fx: 0, tx: 0 });
     },
     goal(S) { const g = S.ents.find(e => e.type === 'giant'); return { k: g && g.st === 'down' ? 'g_giant2' : 'g_giant' }; },
@@ -505,7 +569,9 @@
       }
       if (v.wsT > 0) v.wsT--;
       if (v.wt > 0) v.wt--;
+      crowd(v);
       if (!g) return;
+      if (g.st === 'walk') chat(S, 'z_giant', null, true);
       const ph = g.hp > 700 ? 1 : g.hp > 350 ? 2 : 3;
       const tg = nearest(S, g.x);
       g.t++; if (g.inv > 0) g.inv--;
@@ -600,20 +666,26 @@
         if (kicked) continue;
         if (down && bites(p, headBox(g))) {
           if (g.inv <= 0 && g.bites < MAX_BITES) {
-            g.hp -= 60; g.inv = 35; g.bites++; S.shake = 6; ev(S, 'bosshit');
+            g.hp -= 60 * power(p); g.inv = 35; g.bites++; S.shake = 6; ev(S, 'bosshit'); v.cheer = 50;
             if (g.hp <= 0) { g.hp = 0; remove(S, e => e.type !== 'giant'); complete(S); return; }
           }
         } else if (bites(p, body)) ev(S, 'clang');
       }
 
-      // the Laughing Toilet throws a new duck when there is none on the sand
+      // the Laughing Toilet throws a new duck when there is none on the sand. While the giant is down and
+      // somebody is hurt it sometimes throws brains instead (never when a duck is needed to stop him).
       if (!ducks.length && --v.dt <= 0) {
         v.dt = DUCK_EVERY[ph];
         let tx = 0;
         for (let k = 0; k < 8; k++) { tx = 40 + rnd() * 400; if (Math.abs(tx - g.x) > 80) break; }
-        const T = 56, x0 = WC_X - 8, y0 = WC_Y - 30;
-        S.ents.push({ type: 'duck', x: x0, y: y0, vx: (tx - x0) / T, vy: (G - y0 - 0.1 * T * T) / T, st: 'air', t: 0, k: 0 });
-        ev(S, 'throw'); wcSay(S, 'w_duck'); v.wt = 24;
+        const T = 56, x0 = WC_X - 8, y0 = WC_Y - 30, vx = (tx - x0) / T, vy = (G - y0 - 0.1 * T * T) / T;
+        const standing = g.st === 'walk' || g.st === 'stomp' || g.st === 'fist' || g.st === 'roar';
+        const hurtOne = humans(S).some(p => !p.down && p.hp < 3);
+        if (!standing && hurtOne && !S.ents.some(e => e.type === 'pow') && rnd() < 0.5) {
+          pow(S, 'brain', x0, y0, { vx, vy, air: true });
+          v.dt = 60; wcSay(S, 'w_brain');
+        } else { S.ents.push({ type: 'duck', x: x0, y: y0, vx, vy, st: 'air', t: 0, k: 0 }); wcSay(S, 'w_duck'); }
+        ev(S, 'throw'); v.wt = 24;
       } else if (v.wsT <= 0 && rnd() < 0.004) wcSay(S, HECKLE[(rnd() * HECKLE.length) | 0]);
 
       for (const e of S.ents) {
@@ -661,6 +733,7 @@
     opts = opts || {};
     const S = { tick: 0, mode: 'play', scene: null, ents: [], v: {}, cut: null, evs: [], evN: 0, msg: null, msgT: 0,
       hint: null, shake: 0, overT: 0, overWhy: '', endT: 0, downT: 0, paused: false, two: opts.players === 2, sun0: SUN_CAP,
+      talk: null, talkCd: 0, said: {},
       players: [mkPlayer(0), mkPlayer(1)], pp: [{ j: false, a: false }, { j: false, a: false }] };
     S.players[1].ai = !S.two;
     startScene(S, opts.scene || 'field', true);
@@ -670,12 +743,13 @@
   function startScene(S, id, first) {
     // the sunrise carries over from the arena into the giant fight, capped so the fight stays winnable
     if (id === 'giant' && S.scene === 'arena') S.sun0 = Math.min(SUN_CAP, S.v.sun || 0);
-    S.scene = id; S.ents = []; S.v = {}; S.hint = null; S.msg = null; S.msgT = 0;
+    S.scene = id; S.ents = []; S.v = {}; S.hint = null; S.msg = null; S.msgT = 0; S.talk = null;
     S.mode = 'play'; S.overT = 0; S.downT = 0; S.cut = null;
     for (const p of S.players) {
-      const ai = p.ai;
+      // power-ups carry on into the next scene (through its cutscenes), but not into a retry
+      const ai = p.ai, gold = first ? p.gold : 0, chick = first ? p.chick : 0;
       Object.assign(p, mkPlayer(p.id));
-      p.ai = ai;
+      p.ai = ai; p.gold = gold; p.chick = chick;
     }
     SC[id].init(S);
     ev(S, 'scene');
@@ -744,12 +818,18 @@
   function stepPlayer(S, p, inp, sc) {
     p.jumped = false;
     if (p.inv > 0) p.inv--;
-    if (p.down > 0) { p.vx = 0; p.vy += 0.32; p.y = Math.min(G, p.y + p.vy); return; }
+    // power-up timers only run here, so they stand still during cutscenes, pauses and game over
+    if (p.gold > 0) p.gold--;
+    if (p.chick > 0) p.chick--;
+    if (p.down > 0) { p.idle = 0; p.vx = 0; p.vy += 0.32; p.y = Math.min(G, p.y + p.vy); return; }
     const jp = inp.jump && !p.pj, ap = inp.act && !p.pa;
     p.pj = !!inp.jump; p.pa = !!inp.act;
     let mx = Math.max(-1, Math.min(1, inp.mx || 0));
+    // standing still somewhere safe for 6 s: the head-drops-off gag (drawn only; any input ends it)
+    p.idle = !p.ai && !mx && !inp.jump && !inp.act && p.g && calm(S, p) ? (p.idle + 1) % IDLE_END : 0;
+    if (p.idle === IDLE_END - 1) chat(S, 'z_head', p.id);
     if (p.stun > 0) { p.stun--; mx = 0; }
-    p.vx = mx * 1.5 + p.kb;
+    p.vx = mx * (p.gold > 0 ? 2.1 : 1.5) + p.kb;          // gold paint: 40% faster
     p.kb *= 0.85; if (Math.abs(p.kb) < 0.1) p.kb = 0;
     if (mx) p.face = mx > 0 ? 1 : -1;
     if (sc.running && !mx) p.face = 1;
@@ -785,6 +865,31 @@
     }
   }
 
+  // Power-ups: falling or floating along, and picked up by touching (never by the follower when playing alone).
+  function stepPows(S) {
+    for (const e of S.ents) {
+      if (e.type !== 'pow') continue;
+      e.t++;
+      e.x += e.vx;
+      if (e.air) {
+        e.y += e.vy; e.vy += 0.2;
+        if (e.y >= G) { e.y = G; e.air = false; e.vx = 0; e.vy = 0; }
+      }
+      if (e.x < -20 || e.x > W + 30) { e.dead = 1; continue; }
+      for (const p of humans(S)) {
+        if (p.down || !hit(pbox(p), { x: e.x - 6, y: e.y - 12, w: 12, h: 12 })) continue;
+        if (e.kind === 'brain') {
+          if (p.hp >= 3) continue;                       // at full health the brains stay where they are
+          p.hp++; ev(S, 'pick'); chat(S, 'z_brain', p.id);
+        } else if (e.kind === 'gold') { p.gold = GOLD_T; ev(S, 'power'); chat(S, 'z_gold', p.id); }
+        else { p.chick = CHICK_T; ev(S, 'power'); chat(S, 'z_chick', p.id); }
+        e.dead = 1;
+        break;
+      }
+    }
+    remove(S, e => e.type === 'pow' && e.dead);
+  }
+
   function step(S, inputs) {
     if (S.paused) return;
     S.tick++;
@@ -804,6 +909,10 @@
     }
     sc.update(S);
     if (S.mode !== 'play' || S.scene !== sc.id) return;
+    stepPows(S);
+    // a bubble gives way to a message or an urgent hint
+    if (S.talk && (--S.talk.t <= 0 || S.msgT > 0 || URGENT.includes(S.hint))) S.talk = null;
+    if (S.talkCd > 0) S.talkCd--;
 
     // fallen zombies: a partner gets you back up, otherwise the scene restarts
     const hs = humans(S), up = hs.filter(p => p.down === 0);
@@ -826,6 +935,6 @@
   }
 
   for (const id in SC) SC[id].id = id;
-  DDN.sim = { W, H, G, ORDER, CHAPTERS, DOOR, CHASE_LEN, SUN_FRAMES, SUN_CAP, WC_X, WC_Y, REACH, STUN, MAX_BITES, STOMP_UP, FIST_UP, SC, newGame, startScene, step, skip, humans, biteBox };
+  DDN.sim = { W, H, G, ORDER, CHAPTERS, DOOR, CHASE_LEN, SUN_FRAMES, SUN_CAP, WC_X, WC_Y, REACH, STUN, MAX_BITES, STOMP_UP, FIST_UP, GOLD_T, CHICK_T, TALK_T, TALK_GAP, IDLE_GAG, IDLE_END, ROLL_X, SC, newGame, startScene, step, skip, humans, biteBox };
   if (typeof module !== 'undefined') module.exports = DDN;
 })(typeof window !== 'undefined' ? window : globalThis);

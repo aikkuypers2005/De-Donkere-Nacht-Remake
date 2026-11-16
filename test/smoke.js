@@ -175,37 +175,65 @@ for (const id of ['field', 'bed']) {
   check('retry after game over', S.mode === 'play' && S.scene === 'arena' && S.players[0].hp === 3);
 }
 
+// Watches the speech bubbles: always at most one, a real line in both languages, and new ones at least 8 s apart.
+function talkWatch() {
+  const w = { n: 0, minGap: Infinity, bad: '', last: -1, f: 0, prev: null };
+  w.each = S => {
+    w.f++;
+    const t = S.talk;
+    if (t !== null && (typeof t !== 'object' || Array.isArray(t) || (t.who !== 0 && t.who !== 1) || !DDN.TEXT.nl[t.k] || !DDN.TEXT.en[t.k])) w.bad = JSON.stringify(t);
+    if (t && (S.msgT > 0 || ['h_still', 'h_stomp', 'h_fist', 'h_head'].includes(S.hint))) w.bad = 'bubble over a message or urgent hint: ' + t.k;
+    if (t && !w.prev) {
+      if (w.last >= 0) w.minGap = Math.min(w.minGap, w.f - w.last);
+      w.last = w.f; w.n++;
+    }
+    w.prev = t;
+  };
+  w.ok = () => !w.bad && w.minGap >= sim.TALK_GAP;
+  w.info = () => w.n + ' bubbles, shortest gap ' + (w.n > 1 ? w.minGap : '-') + ' frames' + (w.bad ? ', bad: ' + w.bad : '');
+  return w;
+}
+
 // 5. Random two-player input in every scene, with the state copied as JSON along the way
 //    (that is what online co-op sends), must never crash or produce broken numbers.
+//    Power-ups are handed out along the way so they go through the round trip too.
 for (const id of sim.ORDER) {
   let S = sim.newGame({ players: 2, scene: id }), err = null, frames = 0;
   const r = () => ({ mx: [-1, 0, 1][(Math.random() * 3) | 0], jump: Math.random() < 0.2, act: Math.random() < 0.3 });
+  const talk = talkWatch();
   try {
     for (; frames < 15000; frames++) {
+      if (frames % 600 === 300 && S.mode === 'play') {
+        const p = S.players[(Math.random() * 2) | 0], kind = ['brain', 'gold', 'chick'][(Math.random() * 3) | 0];
+        S.ents.push({ type: 'pow', kind, x: p.x + 20, y: G, vx: 0, vy: 0, air: false, t: 0 });
+        if (frames % 1200 === 300) S.players[0].chick = sim.CHICK_T; else S.players[1].gold = sim.GOLD_T;
+      }
       sim.step(S, [r(), r()]);
+      talk.each(S);
       if (frames % 50 === 0) {
         const json = JSON.stringify(S);
-        if (/null/.test(json.replace(/"(msg|hint|cut|scene)":null/g, ''))) throw new Error('bad number in state: ' + json.slice(0, 300));
+        if (/null/.test(json.replace(/"(msg|hint|cut|scene|talk)":null/g, ''))) throw new Error('bad number in state: ' + json.slice(0, 300));
         S = JSON.parse(json);
       }
       if (S.mode === 'end') break;
     }
   } catch (e) { err = e; }
-  check('random co-op input from ' + id, !err, err ? err.stack.split('\n').slice(0, 3).join(' | ') : frames + ' frames, reached ' + S.scene);
+  check('random co-op input from ' + id, !err && talk.ok(), err ? err.stack.split('\n').slice(0, 3).join(' | ') : frames + ' frames, reached ' + S.scene + ', ' + talk.info());
 }
 
 // 6. The full game from the first cutscene to the end screen, through the turn and the giant.
 {
   const S = sim.newGame({ players: 1 });
   let total = 0, ok = true;
-  const cuts = new Set(), scenes = new Set([S.scene]);
-  const each = s => { if (s.cut) cuts.add(s.cut.id); scenes.add(s.scene); };
+  const cuts = new Set(), scenes = new Set([S.scene]), talk = talkWatch();
+  const each = s => { if (s.cut) cuts.add(s.cut.id); scenes.add(s.scene); talk.each(s); };
   while (S.mode !== 'end' && ok) {
     const f = play(S, scripts[S.scene], { god: true, each });
     if (f < 0) ok = false; else total += f;
   }
   const route = ['intro', 'bedout', 'turn', 'ending'].every(c => cuts.has(c)) && sim.ORDER.every(id => scenes.has(id));
   check('full game start to end', ok && S.mode === 'end' && route, Math.round(total / 60) + ' seconds of play for a perfect bot, cutscenes: ' + [...cuts].join(' '));
+  check('banter during the full game: one bubble at a time, 8 s apart', talk.ok() && talk.n >= 5, talk.info());
 }
 
 // 7. The giant can be beaten by kicking ducks under his feet and biting his head, before sunrise.
@@ -299,7 +327,7 @@ for (const id of sim.ORDER) {
       sim.step(S, [r(), r()]);
       if (frames % 50 === 0) {
         const json = JSON.stringify(S);
-        if (/null/.test(json.replace(/"(msg|hint|cut|scene)":null/g, ''))) throw new Error('bad number in state: ' + json.slice(0, 300));
+        if (/null/.test(json.replace(/"(msg|hint|cut|scene|talk)":null/g, ''))) throw new Error('bad number in state: ' + json.slice(0, 300));
         S = JSON.parse(json);
       }
       if (S.mode === 'end') break;
@@ -336,6 +364,136 @@ for (const id of sim.ORDER) {
     if (S.mode === 'cut' || S.mode === 'end') { wins++; frames += f; }
   }
   check('giant beatable alone without cheats', wins >= 4, wins + '/' + N + ' wins by a careful bot' + (wins ? ', ' + Math.round(frames / wins / 60) + ' s on average' : ''));
+}
+
+// ---------------------------------------------------------------- stage 2: power-ups, banter, details
+const NONE = { mx: 0, jump: false, act: false };
+function quiet(scene, players) { const S = sim.newGame({ players: players || 1, scene }); S.cut = null; S.mode = 'play'; return S; }
+function putPow(S, kind, x, y) { S.ents.push({ type: 'pow', kind, x, y: y || G, vx: 0, vy: 0, air: false, t: 0 }); }
+function hasPow(S, kind) { return S.ents.some(e => e.type === 'pow' && e.kind === kind); }
+function run(S, n, inp) { for (let i = 0; i < n; i++) sim.step(S, [inp || NONE, NONE]); }
+
+// 12. Brains: a heart back, but at full health they stay on the ground. The follower never picks anything up.
+{
+  const S = quiet('field'), p = S.players[0];
+  p.hp = 1; putPow(S, 'brain', p.x); run(S, 1);
+  const healed = p.hp === 2 && !hasPow(S, 'brain');
+  p.hp = 3; putPow(S, 'brain', p.x); run(S, 30);
+  const stays = p.hp === 3 && hasPow(S, 'brain');
+  const ai = S.players[1]; putPow(S, 'gold', ai.x); run(S, 5);
+  check('brains heal, stay put at full health; the follower picks nothing up', healed && stays && ai.gold === 0 && hasPow(S, 'gold'),
+    'hp 1 -> ' + (healed ? 2 : '?') + ', full health: ' + (stays ? 'stays' : 'taken') + ', follower gold ' + ai.gold);
+}
+
+// 13. Gold paint: 8 s of no damage and 40% faster, then it wears off.
+{
+  const S = quiet('field'), p = S.players[0];
+  putPow(S, 'gold', p.x); run(S, 1);
+  const got = p.gold === sim.GOLD_T;
+  let x0 = p.x; run(S, 20, { mx: 1 }); const fast = p.x - x0;
+  run(S, sim.GOLD_T);
+  x0 = p.x; run(S, 20, { mx: -1 }); const slow = x0 - p.x;
+  p.gold = 100; putPow(S, 'gold', p.x); run(S, 1);
+  const reset = p.gold === sim.GOLD_T; run(S, sim.GOLD_T);
+  // hazards: a log in the chase
+  const C = quiet('chase'), q = C.players[0];
+  C.v.sp = 1e9; q.gold = sim.GOLD_T;
+  C.ents.push({ type: 'log', x: q.x + 2 }); run(C, 12);
+  const safe = q.hp === 3;
+  q.gold = 0; q.inv = 0; C.ents.push({ type: 'log', x: q.x + 2 }); run(C, 12);
+  check('gold paint: no damage, faster, wears off, a second pot resets the timer', got && reset && Math.abs(fast - 42) < 2 && Math.abs(slow - 30) < 2 && p.gold === 0 && safe && q.hp === 2,
+    '20 frames: ' + fast.toFixed(1) + ' px with gold, ' + slow.toFixed(1) + ' px after; log with gold: hp ' + (safe ? 3 : '<3') + ', without: hp ' + q.hp);
+}
+
+// 14. The chicken: the bite reaches twice as far for 10 s.
+{
+  const S = quiet('field'), p = S.players[0];
+  putPow(S, 'chick', p.x); run(S, 1);
+  const got = p.chick === sim.CHICK_T;
+  const reach = () => { let w = 0; for (let i = 0; i < 14; i++) { sim.step(S, [{ mx: 0, jump: false, act: i === 0 }, NONE]); const b = sim.biteBox(p); if (b) w = b.w; } run(S, 10); return w; };
+  const long = reach();
+  run(S, sim.CHICK_T);
+  const short = reach();
+  check('the chicken doubles the reach and wears off', got && long === 34 && short === 17 && p.chick === 0, 'reach ' + long + ' with the chicken, ' + short + ' after');
+}
+
+// 15. A chicken bite does double damage to bosses: thief and giant 120, the toilet 2 hits.
+{
+  const bite = (S, hold, chick) => {
+    const p = S.players[0];
+    for (let i = 0; i < 30; i++) { hold(S, p); p.chick = chick ? 300 : 0; p.inv = 2; sim.step(S, [{ mx: 0, jump: false, act: i === 0 }, NONE]); }
+  };
+  const thiefHold = (S, p) => { const th = S.ents.find(e => e.type === 'thief'); th.st = 'pant'; th.t = 0; th.x = p.x + 12; th.y = G; th.vx = 0; th.g = true; th.inv = th.inv > 0 ? th.inv : 0; p.face = 1; };
+  const giantHold = (S, p) => { const g = S.ents.find(e => e.type === 'giant'); g.st = 'down'; g.t = 5; g.x = 240; g.face = -1; p.x = 272; p.face = 1; };
+  const wcHold = (S, p) => { const wc = S.ents.find(e => e.type === 'wc'); wc.st = 'tired'; wc.t = 5; p.x = 360; p.face = 1; };
+  const out = {};
+  for (const chick of [false, true]) {
+    let S = quiet('arena'); bite(S, thiefHold, chick); out['thief' + chick] = S.ents.find(e => e.type === 'thief').hp;
+    S = quiet('giant'); bite(S, giantHold, chick); out['giant' + chick] = S.ents.find(e => e.type === 'giant').hp;
+    S = quiet('bath'); bite(S, wcHold, chick); out['wc' + chick] = S.ents.find(e => e.type === 'wc').hp;
+  }
+  check('chicken bites do double damage to the bosses', out.thieffalse === 940 && out.thieftrue === 880 && out.giantfalse === 940 && out.gianttrue === 880 && out.wcfalse === 5 && out.wctrue === 4,
+    'thief ' + out.thieffalse + '/' + out.thieftrue + ', giant ' + out.giantfalse + '/' + out.gianttrue + ', toilet ' + out.wcfalse + '/' + out.wctrue + ' (without/with)');
+}
+
+// 16. Power-up timers stand still in cutscenes, carry on into the next scene, and are gone after a retry.
+{
+  const S = sim.newGame({ players: 1, scene: 'arena' });          // starts in its intro
+  S.players[0].gold = 300; S.players[0].chick = 400;
+  let f = 0; while (S.mode === 'cut' && f++ < 3000) sim.step(S, [{ mx: 0, jump: false, act: f % 2 === 0 }]);
+  const frozen = S.mode === 'play' && S.players[0].gold === 300 && S.players[0].chick === 400;
+  // the last candle in the hall: hall outro, bath intro, then the bath fight
+  const H = quiet('hall'), p = H.players[0];
+  H.v.lit = 3; H.v.doneT = 1; p.gold = 300;
+  sim.step(H, [NONE]);
+  const before = p.gold, cutSeen = H.mode === 'cut';
+  f = 0; while ((H.mode === 'cut' || H.scene !== 'bath') && f++ < 3000) sim.step(H, [{ mx: 0, jump: false, act: f % 2 === 0 }]);
+  const carried = cutSeen && H.scene === 'bath' && H.mode === 'play' && H.players[0].gold === before;
+  // a retry starts clean
+  H.mode = 'over'; H.overT = 50; sim.step(H, [NONE]); sim.step(H, [{ mx: 0, jump: false, act: true }]);
+  check('power-up timers stop in cutscenes, carry into the next scene, reset on retry', frozen && carried && H.players[0].gold === 0,
+    'after the arena intro: ' + S.players[0].gold + '/' + S.players[0].chick + '; hall -> bath: ' + before + ' -> ' + (carried ? before : '?') + '; after retry: ' + H.players[0].gold);
+}
+
+// 16b. In the giant fight the toilet sometimes throws brains to a hurt zombie, but only while the giant is down:
+//      when he stands and there is no duck, a duck is needed.
+{
+  const throwOnce = st => {
+    const S = quiet('giant'), g = S.ents.find(e => e.type === 'giant');
+    g.st = st; g.t = 5; g.cd = 9999; S.players[0].hp = 2; S.v.dt = 1;
+    sim.step(S, [NONE, NONE]);
+    return hasPow(S, 'brain') ? 'brain' : S.ents.some(e => e.type === 'duck') ? 'duck' : '';
+  };
+  const down = { brain: 0, duck: 0 }, up = { brain: 0, duck: 0 };
+  for (let i = 0; i < 40; i++) { down[throwOnce('down')]++; up[throwOnce('walk')]++; }
+  check('the toilet throws brains only while the giant is down', down.brain > 0 && down.duck > 0 && up.brain === 0 && up.duck === 40,
+    'giant down: ' + down.brain + ' brains, ' + down.duck + ' ducks; giant standing: ' + up.brain + ' brains, ' + up.duck + ' ducks');
+}
+
+// 17. The garden gnome runs off when bitten; the toilet roll unrolls and the paper stays.
+{
+  const S = quiet('house'), p = S.players[0], gn = S.ents.find(e => e.type === 'gnome');
+  p.x = gn.x - 10; p.face = 1;
+  for (let i = 0; i < 12; i++) { p.inv = 2; sim.step(S, [{ mx: 0, jump: false, act: i === 0 }, NONE]); }
+  const ran = gn.st === 'run';
+  for (let i = 0; i < 200; i++) { p.inv = 2; sim.step(S, [NONE, NONE]); }
+  const gone = !S.ents.some(e => e.type === 'gnome');
+  const B = quiet('bath'), q = B.players[0];
+  q.x = sim.ROLL_X - 12; q.face = 1;
+  for (let i = 0; i < 400; i++) { q.inv = 2; q.hp = 3; sim.step(B, [{ mx: 0, jump: false, act: i === 0 }, NONE]); }
+  check('the gnome and the toilet roll react to a bite', ran && gone && B.v.roll === 1 && B.v.paper === 150,
+    'gnome ' + (ran ? 'ran' : 'stayed') + (gone ? ' and left' : '') + ', roll ' + B.v.roll + ', paper ' + B.v.paper + ' px');
+}
+
+// 18. The head-drops-off gag: only after 6 s of standing still somewhere safe, and any input ends it at once.
+{
+  const S = quiet('field'), p = S.players[0];
+  run(S, sim.IDLE_GAG + 10);
+  const started = p.idle >= sim.IDLE_GAG;
+  const x0 = p.x; run(S, 1, { mx: 1 });
+  const A = quiet('arena'); run(A, sim.IDLE_GAG + 10);
+  check('idle gag after 6 s, any input ends it, never in the arena', started && p.idle === 0 && p.x > x0 && A.players[0].idle === 0,
+    'idle ' + (started ? 'reached the gag' : 'did not start') + ', after one step of walking: idle ' + p.idle + ', moved ' + (p.x - x0).toFixed(1) + ' px');
 }
 
 console.log(failed ? '\n' + failed + ' check(s) failed' : '\nAll checks passed');

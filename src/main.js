@@ -65,6 +65,11 @@
         if (boss && q.get('hp')) boss.hp = Math.max(1, Math.min(1000, Math.round(Number(q.get('hp'))) || 1000));
         if (q.get('sun') && typeof S.v.sun === 'number') S.v.sun = Math.max(0, Math.min(0.99, Number(q.get('sun')) || 0));
         if (q.get('stun') && boss && boss.type === 'giant') { boss.st = 'down'; boss.t = 0; boss.bites = 0; }
+        // ?gold=1 and ?chick=1 give player 1 that power-up, ?talk=z_key shows a speech bubble, ?idle=1 starts the head gag
+        if (q.get('gold')) S.players[0].gold = sim.GOLD_T;
+        if (q.get('chick')) S.players[0].chick = sim.CHICK_T;
+        if (q.get('talk') && DDN.TEXT.nl[q.get('talk')]) S.talk = { who: 0, k: q.get('talk'), t: 100000 };
+        if (q.get('idle')) S.players[0].idle = sim.IDLE_GAG - 30;
       }
     });
   };

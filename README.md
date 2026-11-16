@@ -36,6 +36,16 @@ The folder is a plain static site, so it can also be hosted as-is (for example o
 4. **HELP ZOMBIES** - sneak to the bed while he snores, then keep up in the chase. On the way out a zombie bites him in the behind.
 5. **De Arena** - win the canvas back before sunrise. Then the bite kicks in: the thief turns into a giant. He cannot be hurt standing up, so kick the Laughing Toilet's rubber ducks under his feet and bite his head while he lies on his back. Losing restarts the giant fight, not the arena.
 
+## Power-ups
+
+Every scene hides one, somewhere that takes a little effort. Touch it to pick it up.
+
+- **Hersens** (brains): one heart back. At full health they stay where they are. Bats in the forest sometimes drop them, and in the giant fight the Laughing Toilet throws some while the giant is down.
+- **Gouden verf** (gold paint): 8 seconds of no damage, and you walk faster.
+- **De kip** (the chicken, from the girl's belt in *De Nachtwacht*): 10 seconds of biting twice as far, and bosses take double damage.
+
+Power-ups carry on into the next scene. Their timers stop during cutscenes.
+
 ## Test links
 
 For trying one part of the game directly:
@@ -43,6 +53,7 @@ For trying one part of the game directly:
 - `?scene=giant&nocut=1` starts the giant fight (`&p=2` for two players).
 - `?scene=arena&cut=turn&i=3` shows one cutscene line. A scene's outro carries on as in the game, so this one leads into the giant fight.
 - `?hp=60` sets the thief's or the giant's leven, `?sun=0.9` the sunrise, `?stun=1` puts the giant on his back.
+- `?gold=1` and `?chick=1` give player 1 that power-up, `?talk=z_key` shows a speech bubble, `?idle=1` starts the head-drops-off gag.
 - `?end=1` shows the end screen.
 
 ## Code

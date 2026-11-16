@@ -112,10 +112,15 @@
     { body: '#29c44c', dark: '#1b8a36', skin: '#63d97d', sdark: '#3fae5a', hat: '#17171f', band: '#c0302a' },
     { body: '#64c44c', dark: '#479438', skin: '#a2dc7c', sdark: '#7ab85c', hat: '#d8c070', band: '#9a7a2c' }
   ];
+  // Gold paint: the same two zombies, in gold.
+  const ZG = [
+    { body: '#e8b830', dark: '#b8861c', skin: '#f8dc78', sdark: '#d8b048', hat: '#7a5810', band: '#fff0a0' },
+    { body: '#f0c840', dark: '#c09020', skin: '#fce488', sdark: '#dcb850', hat: '#c89a30', band: '#8a6414' }
+  ];
   // The zombie keeps the 2016 shape: a block body, a round head and one arm stretched out.
   // The hats and collar come from the two captains in the middle of De Nachtwacht.
   function zombie(P, id, o) {
-    const c = ZC[id], b = o.bob || 0;
+    const c = o.pal || ZC[id], b = o.bob || 0;
     const legs = o.legs || [[-4, 0], [1, 0]];
     for (const [lx, up] of legs) { P(lx, -6 - up, 3, 6, c.dark); P(lx, -1 - up, 4, 1, '#22222a'); }
     P(-5, -18 + b, 10, 13, c.body); P(-5, -18 + b, 2, 13, c.dark);
@@ -123,18 +128,22 @@
     if (id === 0) { P(-3, -17 + b, 2, 2, c.band); P(-1, -15 + b, 2, 2, c.band); P(1, -13 + b, 2, 2, c.band); P(3, -11 + b, 2, 2, c.band); }
     else { P(-5, -10 + b, 10, 2, c.hat); P(-1, -10 + b, 2, 2, c.band); }
     P(-6, -19 + b, 12, 2, '#ebe8da');
-    P(-4, -29 + b, 8, 10, c.skin); P(-5, -28 + b, 10, 8, c.skin); P(-5, -28 + b, 2, 8, c.sdark); P(-4, -29 + b, 2, 1, c.sdark);
-    P(1, -26 + b, 3, 3, '#f6f6e4'); P(3, -25 + b, 1, 1, '#111');
-    if (o.mouth) { P(0, -22 + b, 5, 2, '#3a0a0a'); P(1, -22 + b, 1, 1, '#fff'); P(3, -22 + b, 1, 1, '#fff'); }
-    else P(1, -21 + b, 4, 1, '#1a4a22');
-    P(-7, -30 + b, 14, 2, c.hat); P(-4, -30 + b - (id ? 3 : 4), 8, id ? 3 : 4, c.hat); P(-4, -31 + b, 8, 1, c.band);
-    if (id === 1) P(-6, -36 + b, 2, 5, '#f4f4f4');
+    if (!o.nohead) zHead(P, id, c, b, o.mouth);
     const al = o.arm || 8;
     if (o.arm2) { P(3, -13 + b, o.arm2, 2, c.dark); P(3 + o.arm2, -14 + b, 2, 3, c.sdark); }
     P(3, -16 + b, al, 2, c.body); P(3 + al, -17 + b, 2, 3, c.skin);
   }
-  function zombieDown(P, id) {
-    const c = ZC[id];
+  // The head and hat on their own, so the head can drop off (the idle gag). b moves it up and down.
+  function zHead(P, id, c, b, mouth) {
+    P(-4, -29 + b, 8, 10, c.skin); P(-5, -28 + b, 10, 8, c.skin); P(-5, -28 + b, 2, 8, c.sdark); P(-4, -29 + b, 2, 1, c.sdark);
+    P(1, -26 + b, 3, 3, '#f6f6e4'); P(3, -25 + b, 1, 1, '#111');
+    if (mouth) { P(0, -22 + b, 5, 2, '#3a0a0a'); P(1, -22 + b, 1, 1, '#fff'); P(3, -22 + b, 1, 1, '#fff'); }
+    else P(1, -21 + b, 4, 1, '#1a4a22');
+    P(-7, -30 + b, 14, 2, c.hat); P(-4, -30 + b - (id ? 3 : 4), 8, id ? 3 : 4, c.hat); P(-4, -31 + b, 8, 1, c.band);
+    if (id === 1) P(-6, -36 + b, 2, 5, '#f4f4f4');
+  }
+  function zombieDown(P, id, pal) {
+    const c = pal || ZC[id];
     P(-12, -6, 14, 6, c.body); P(-12, -6, 14, 2, c.dark);
     P(2, -9, 9, 9, c.skin); P(6, -6, 2, 1, '#111'); P(8, -6, 1, 1, '#111'); P(7, -7, 1, 3, '#111');
     P(-17, -3, 5, 3, c.dark); P(12, -4, 8, 2, c.hat); P(14, -7, 5, 3, c.hat);
@@ -296,13 +305,18 @@
 
   function buildSprites() {
     for (let id = 0; id < 2; id++) {
+      for (const look of ['', 'g']) {
+        const k = 'z' + id + look + '_', pal = look ? ZG[id] : null;
+        const mk = (name, o) => make(k + name, 30, 40, 9, 39, P => zombie(P, id, Object.assign({ pal }, o)));
+        mk('idle0', {}); mk('idle1', { bob: 1, legs: [[-4, 0], [1, 0]] });
+        mk('w0', { legs: [[-6, 1], [2, 0]] }); mk('w1', { bob: 1 }); mk('w2', { legs: [[-3, 0], [3, 1]] }); mk('w3', { bob: 1 });
+        mk('jump', { legs: [[-5, 2], [2, 3]], arm: 9 });
+        mk('bite', { mouth: 1, arm: 12, arm2: 10, legs: [[-5, 0], [2, 0]] });
+        make(k + 'down', 40, 12, 18, 11, P => zombieDown(P, id, pal));
+      }
       const k = 'z' + id + '_';
-      const mk = (name, o) => make(k + name, 30, 40, 9, 39, P => zombie(P, id, o));
-      mk('idle0', {}); mk('idle1', { bob: 1, legs: [[-4, 0], [1, 0]] });
-      mk('w0', { legs: [[-6, 1], [2, 0]] }); mk('w1', { bob: 1 }); mk('w2', { legs: [[-3, 0], [3, 1]] }); mk('w3', { bob: 1 });
-      mk('jump', { legs: [[-5, 2], [2, 3]], arm: 9 });
-      mk('bite', { mouth: 1, arm: 12, arm2: 10, legs: [[-5, 0], [2, 0]] });
-      make(k + 'down', 40, 12, 18, 11, P => zombieDown(P, id));
+      make(k + 'headless', 30, 40, 9, 39, P => zombie(P, id, { nohead: 1 }));
+      make(k + 'head', 16, 20, 8, 19, P => zHead(P, id, ZC[id], 19, 0));      // drawn with its neck at x, y
       make(k + 'icon', 12, 12, 6, 11, P => {
         const c = ZC[id];
         P(-4, -8, 8, 8, c.skin); P(1, -6, 2, 2, '#fff'); P(2, -5, 1, 1, '#111'); P(-6, -9, 12, 2, c.hat); P(-3, -11, 6, 2, c.hat);
@@ -342,6 +356,54 @@
     });
     make('stone', 12, 10, 6, 5, P => { P(-5, -4, 10, 8, '#9a9488'); P(-5, -4, 10, 2, '#bab4a6'); P(-5, -4, 2, 8, '#7a7468'); P(1, 0, 3, 1, '#6a6458'); });
     make('plaster', 10, 7, 5, 3, P => { P(-5, -3, 10, 7, '#f4efe0'); P(-2, -1, 4, 3, '#d4c4a8'); P(-4, -2, 1, 1, '#d4c4a8'); P(3, 2, 1, 1, '#d4c4a8'); });
+
+    // power-ups: brains, a pot of gold paint, and the dead chicken from the girl's belt in De Nachtwacht
+    make('pu_brain', 12, 9, 6, 9, P => {
+      P(-5, -8, 10, 7, '#f09ab0'); P(-4, -9, 8, 1, '#f09ab0'); P(-6, -6, 12, 4, '#f09ab0'); P(-5, -2, 10, 1, '#c8607e');
+      P(-3, -7, 1, 3, '#c8607e'); P(0, -8, 1, 2, '#c8607e'); P(2, -6, 1, 3, '#c8607e'); P(-1, -4, 3, 1, '#c8607e'); P(-4, -8, 2, 1, '#ffd0dc');
+    });
+    make('pu_gold', 10, 13, 5, 13, P => {
+      P(-4, -8, 8, 8, '#9aa0ac'); P(-4, -8, 2, 8, '#6a707c'); P(-4, -9, 8, 2, '#f8d040'); P(1, -7, 1, 3, '#f8d040'); P(-1, -5, 4, 3, '#f8d040');
+      P(2, -13, 1, 5, '#8a5a2c'); P(1, -10, 3, 2, '#f8d040');
+    });
+    // hangs from its feet: drawn with the feet at x, y
+    make('pu_chick', 10, 14, 5, 0, P => {
+      P(-1, 0, 1, 3, '#e8a020'); P(1, 0, 1, 3, '#e8a020');
+      P(-3, 3, 6, 6, '#f4f0e8'); P(-3, 3, 2, 6, '#d0ccc0'); P(1, 4, 2, 4, '#d8d4cc');
+      P(-1, 9, 2, 2, '#f4f0e8'); P(-1, 11, 2, 2, '#e03030'); P(1, 10, 1, 1, '#e8a020'); P(-1, 10, 1, 1, '#111');
+    });
+    // the garden gnome in front of the house, standing and running away
+    const gnome = (key, run, f) => make(key, 14, 21, 7, 20, P => {
+      P(-4 + (run && f ? 1 : 0), -2 - (run && !f ? 1 : 0), 3, 2, '#5a3a1a'); P(1 - (run && f ? 1 : 0), -2 - (run && f ? 1 : 0), 3, 2, '#5a3a1a');
+      P(-4, -9, 8, 7, '#3a6ac8'); P(-4, -9, 2, 7, '#2a4a98'); P(-4, -6, 8, 1, '#2a2a2a');
+      P(-3, -12, 6, 5, '#f4f4f4'); P(-2, -14, 4, 3, '#f0c8a0'); P(1, -13, 2, 1, '#e89070'); P(1, -14, 1, 1, '#111');
+      P(-3, -16, 6, 2, '#d82828'); P(-2, -18, 4, 2, '#d82828'); P(-1, -20, 2, 2, '#d82828');
+      if (run) { P(-6, -14, 2, 5, '#3a6ac8'); P(4, -14, 2, 5, '#3a6ac8'); P(-6, -15, 2, 1, '#f0c8a0'); P(4, -15, 2, 1, '#f0c8a0'); P(0, -11, 2, 2, '#3a0a0a'); P(1, -15, 2, 2, '#fff'); P(2, -14, 1, 1, '#111'); }
+    });
+    gnome('gnome0', false, 0); gnome('gnome1', true, 0); gnome('gnome2', true, 1);
+    // the WANTED poster in the bedroom (the word itself is drawn on top, in the player's language)
+    make('poster', 62, 50, 0, 0, P => {
+      P(0, 0, 62, 50, '#e8d8a8'); P(0, 0, 62, 1, '#c8b480'); P(0, 49, 62, 1, '#b8a070'); P(61, 0, 1, 50, '#c8b480'); P(54, 44, 8, 6, '#d0bc88');
+      P(24, 15, 13, 14, TH.skin); P(24, 15, 3, 14, TH.sdark); P(31, 19, 3, 3, '#fff'); P(32, 20, 1, 1, '#111'); P(31, 25, 4, 1, '#4a2a1a');
+      P(20, 29, 21, 6, TH.suit); P(20, 29, 21, 1, TH.dark);
+      P(12, 39, 38, 2, '#8a7650'); P(17, 43, 28, 1, '#8a7650'); P(30, 1, 2, 2, '#c03030');
+    });
+    // the toilet roll on its holder, full and empty
+    const holder = (key, full) => make(key, 14, 13, 7, 6, P => {
+      P(-6, -1, 2, 4, '#b8bcc8'); P(-6, -1, 12, 1, '#d8dce8');
+      if (full) { P(-4, -5, 8, 8, '#f8f8f8'); P(-4, -5, 8, 1, '#ffffff'); P(2, 3, 3, 3, '#f8f8f8'); }
+      P(-1, -2, 2, 2, '#c8b090');
+    });
+    holder('roll1', true); holder('roll0', false);
+    // the ghost audience in the arena stands: calm, cheering, booing
+    const ghost = (key, mood) => make(key, 10, 12, 5, 11, P => {
+      const c = '#e4ecff', k = '#3a3a5a';
+      P(-3, -10, 6, 9, c); P(-4, -8, 8, 6, c); P(-4, -2, 2, 2, c); P(-1, -2, 2, 2, c); P(2, -2, 2, 2, c);
+      if (mood === 1) { P(-5, -11, 1, 4, c); P(4, -11, 1, 4, c); P(-2, -8, 1, 1, k); P(1, -8, 1, 1, k); P(-1, -5, 2, 2, k); }
+      else if (mood === 2) { P(-2, -7, 1, 1, k); P(1, -7, 1, 1, k); P(-2, -9, 1, 1, k); P(2, -9, 1, 1, k); P(-2, -4, 4, 1, k); P(-2, -3, 1, 1, k); P(1, -3, 1, 1, k); }
+      else { P(-2, -8, 1, 2, k); P(1, -8, 1, 2, k); P(-1, -5, 2, 1, k); }
+    }, false);
+    ghost('ghost0', 0); ghost('ghost1', 1); ghost('ghost2', 2);
 
     const bat = (key, up) => make(key, 20, 12, 10, 7, P => {
       P(-2, -3, 5, 6, '#4a3568'); P(-2, -5, 1, 2, '#4a3568'); P(2, -5, 1, 2, '#4a3568');
@@ -613,19 +675,59 @@
     if (Math.abs(p.vx) > 0.2 || run) return 'w' + (Math.floor(S.tick / 6) % 4);
     return 'idle' + (Math.floor(S.tick / 30 + p.id) % 2);
   }
+  // The idle gag: the head drops off, lies on the floor a moment, and is put back. gt counts 0..100.
+  function headGag(p, gt) {
+    const f = p.face < 0, k = 'z' + p.id + '_';
+    let hx = p.x, hy = p.y - 19;
+    if (gt < 24) { const q = gt / 24; hx = p.x + p.face * q * 10; hy = p.y - 19 + Math.round(19 * q * q); }
+    else if (gt < 70) { hx = p.x + p.face * 10; hy = p.y - (gt < 32 ? Math.round(Math.sin((gt - 24) / 8 * Math.PI) * 4) : 0); }
+    else { const q = (gt - 70) / 30; hx = p.x + p.face * 10 * (1 - q); hy = p.y - Math.round(19 * q); }
+    blit(k + 'headless', p.x, p.y, f);
+    blit(k + 'head', hx, hy, f);
+  }
   function drawPlayers(S, t) {
     for (const p of S.players) {
       if (p.inv > 0 && p.down === 0 && Math.floor(t / 3) % 2) continue;
-      blit('z' + p.id + '_' + zPose(S, p), p.x, p.y, p.face < 0);
+      const pose = zPose(S, p), gt = p.idle - sim.IDLE_GAG;
+      // gold paint: a gold zombie with sparkles, flickering in the last 2 seconds
+      const gold = p.gold > 0 && pose !== 'down' && (p.gold > 120 || Math.floor(t / 6) % 2);
+      if (gt >= 0 && gt < 100 && pose.startsWith('idle')) headGag(p, gt);
+      else blit('z' + p.id + (gold ? 'g' : '') + '_' + pose, p.x, p.y, p.face < 0);
+      if (gold) for (let i = 0; i < 3; i++) {
+        const sx = p.x + ((t * 7 + i * 37) % 22) - 11, sy = p.y - 6 - ((t * 3 + i * 19) % 28);
+        R(sx, sy, 1, 1, '#fff8c0'); if ((t + i * 5) % 12 < 4) { R(sx - 1, sy, 3, 1, '#fff8c0'); R(sx, sy - 1, 1, 3, '#fff8c0'); }
+      }
+      // the chicken hangs from his outstretched hand
+      if (p.chick > 0 && p.down === 0 && (p.chick > 120 || Math.floor(t / 6) % 2) && !(gt >= 0 && gt < 100)) {
+        const al = pose === 'bite' ? 12 : pose === 'jump' ? 9 : 8, b = pose === 'idle1' || pose === 'w1' || pose === 'w3' ? 1 : 0;
+        blit('pu_chick', p.x + p.face * (4 + al), p.y - 15 + b, p.face < 0);
+      }
       if (p.carry > 0 && (p.carry > 120 || Math.floor(t / 4) % 2)) flame(p.x + p.face * 12, p.y - 17, t, false);
       if (p.down > 0 && S.two) T(String(Math.max(0, Math.ceil((240 - p.down) / 60))), p.x, p.y - 26, '#ffffff', 'ps', 1);
     }
   }
+  // The ghost audience in the arena stands. It cheers, boos and does a wave, all read from S.v.
+  function ghosts(S, tx, t) {
+    const v = S.v, wavePos = v.wave > 0 ? (150 - v.wave) / 150 * (W + 60) - 30 : -999;
+    let i = 0;
+    [170, 151, 133].forEach((y, r) => {
+      for (let x = 14 + r * 11; x < W - 8; x += 26, i++) {
+        if (S.scene === 'giant' && x > sim.WC_X - 24) continue;            // the toilet's seat
+        const inWave = Math.abs(x - wavePos) < 24;
+        const mood = v.boo > 0 ? 2 : v.cheer > 0 || inWave ? 1 : 0;
+        const up = inWave ? 5 : v.cheer > 0 ? ((Math.floor(t / 5) + i) % 2) * 2 : 0;
+        blit('ghost' + mood, x, y - up, i % 2 === 1, 0.55);
+      }
+    });
+    if (v.cheer > 0) { T(tx.cheer, 110, 104, '#e4ecff', 'ps', 1); T(tx.cheer, 330, 112, '#e4ecff', 'ps', 1); }
+    else if (v.boo > 0) { T(tx.boo, 130, 106, '#e4ecff', 'ps', 1); T(tx.boo, 310, 110, '#e4ecff', 'ps', 1); }
+  }
 
-  function drawScene(S, t) {
+  function drawScene(S, t, tx) {
     const v = S.v, id = S.scene, sc = sim.SC[id];
     bg(id === 'chase' ? 'field' : id === 'giant' ? 'arena' : id);
     if (id === 'chase') chaseBack(v);
+    if (id === 'arena' || id === 'giant') ghosts(S, tx, t);
     if (id === 'field') {
       blit('grave', 30, G); blit('grave', 52, G);
       blit('gate' + Math.max(0, v.gate), 398, G);
@@ -635,10 +737,27 @@
     for (const p of sc.plats) blit('branch', p.x, p.y);
     if (id === 'forest') for (const s of v.sc) if (!s.got) { blit('scrap' + (Math.floor(t / 12) % 2), s.x, s.y + Math.round(Math.sin(t / 15 + s.x) * 1.5)); }
     if (id === 'house' && v.key && Math.floor(t / 20) % 2) T('v', sim.DOOR, 150, '#f8d040', 'ps', 1);
+    if (id === 'bath') {
+      // the toilet roll, and once bitten the paper all over the floor
+      blit(v.roll ? 'roll0' : 'roll1', sim.ROLL_X, 198);
+      if (v.roll) {
+        R(sim.ROLL_X + 1, 201, 3, G - 201, '#f4f4f4');
+        const len = Math.round(v.paper);
+        R(sim.ROLL_X + 4 - len, G - 2, len, 2, '#f4f4f4');
+        for (let x = sim.ROLL_X - 4; x > sim.ROLL_X + 4 - len; x -= 8) R(x, G - 2, 1, 2, '#c8ccd8');
+      }
+    }
     if (id === 'bed') {
+      blit('poster', 300, 68);
+      T(tx.wanted, 331, 70, '#7a2010', 'ps', 1, 1, false);
       for (const d of v.d) blit('duck', d.x, G - (d.cd > 40 ? 1 : 0));
       blit(v.ph === 'listen' ? 'bed_awake' : 'bed_sleep', 392, G);
-      if (v.ph === 'snore') { const k = Math.floor(t / 20) % 3; for (let i = 0; i <= k; i++) T('Z', 420 + i * 8, 170 - i * 10, '#ffffff', 'ps'); }
+      if (v.ph === 'snore') {
+        const k = Math.floor(t / 20) % 3; for (let i = 0; i <= k; i++) T('Z', 420 + i * 8, 170 - i * 10, '#ffffff', 'ps');
+        // he talks in his sleep
+        const s = tx['s_' + v.mum];
+        if (s) { const w = textImg(s, 'vt', '#2a2a5a').width; T(s, Math.min(400, W - 4 - w / 2), 126, '#2a2a5a', 'vt', 1, 1, false); }
+      }
       else if (v.ph === 'stir') T('?', 418, 158, '#f8d040', 'ps', 0, 2);
       else T('!', 418, 150, '#ff4040', 'ps', 0, 2);
     }
@@ -671,6 +790,16 @@
           if (e.hp > 0) blit('key', e.x + e.dir * 8, e.y + 3);
           break;
         case 'key': blit('key', e.x, e.y + Math.round(Math.sin(t / 8))); break;
+        case 'pow': {
+          const bob = e.air || e.vx ? 0 : Math.round(Math.sin(t / 10 + e.x) * 1.5) - 1;
+          if (e.kind === 'chick') blit('pu_chick', e.x, e.y - 16 + bob); else blit('pu_' + e.kind, e.x, e.y + bob);
+          if (Math.floor((t + e.x) / 16) % 3 === 0) R(e.x + 4, e.y - 15 + bob, 1, 1, '#ffffff');
+          break;
+        }
+        case 'gnome':
+          blit(e.st === 'run' ? 'gnome' + (1 + Math.floor(t / 4) % 2) : 'gnome0', e.x, G, e.dir < 0);
+          if (e.st === 'run' && e.t < 50) T('!', e.x, G - 36, '#ffffff', 'ps', 1);
+          break;
         case 'rat': blit('rat' + (Math.floor(t / 4) % 2), e.x, G, e.dir < 0); break;
         case 'wc': {
           const open = e.st === 'spit' || e.st === 'tired';
@@ -740,6 +869,17 @@
       if (p.ai) continue;
       blit('z' + p.id + '_icon', 12, y + 9);
       for (let i = 0; i < 3; i++) blit(i < p.hp ? 'heart' : 'heart0', 22 + i * 9, y + 1);
+      // power-up timers next to the hearts (right of the boss bar in the arena), blinking in the last 2 seconds
+      const boss = S.scene === 'arena' || S.scene === 'giant', step = boss ? 25 : 32, bw = boss ? 10 : 16;
+      let px = boss ? 424 : 54;
+      for (const [kind, left, max, col] of [['gold', p.gold, sim.GOLD_T, '#f8d040'], ['chick', p.chick, sim.CHICK_T, '#f4f0e8']]) {
+        if (left <= 0) continue;
+        if (left > 120 || Math.floor(t / 6) % 2) {
+          if (kind === 'chick') blit('pu_chick', px + 3, y - 1); else blit('pu_gold', px + 3, y + 11);
+          bar(px + 10, y + 4, bw, 3, left / max, col);
+        }
+        px += step;
+      }
       y += 13;
     }
     const g = sc.goal(S);
@@ -768,6 +908,16 @@
       if (v.wsT > 0 && tx[v.ws]) { const s = tx[v.ws], w = textImg(s, 'vt', '#7ec8f0').width + 1; T(s, Math.min(sim.WC_X + w / 2, W - 4), 58, '#7ec8f0', 'vt', 2); }
     }
     if (S.msgT > 0 && S.msg) T(tx[S.msg], 240, 62, '#f8d040', 'vt', 1);
+    // what a zombie says: a small speech bubble over his head (at most 150 px wide)
+    if (S.talk && S.mode === 'play' && S.players[S.talk.who] && tx[S.talk.k]) {
+      const p = S.players[S.talk.who], lines = wrap(tx[S.talk.k], 'vt', 138);
+      const w = Math.min(150, Math.max(...lines.map(l => measure(l, 'vt'))) + 10), h = lines.length * 13 + 6;
+      const bx = Math.round(Math.max(3, Math.min(W - 3 - w, p.x - w / 2))), by = Math.round(Math.max(40, p.y - 40 - h));
+      R(bx - 1, by - 1, w + 2, h + 2, '#0c0a16'); R(bx, by, w, h, '#f4f4ec');
+      const tx0 = Math.round(Math.max(bx + 3, Math.min(bx + w - 6, p.x - 1)));
+      R(tx0 - 1, by + h + 1, 5, 1, '#0c0a16'); R(tx0, by + h, 3, 1, '#f4f4ec'); R(tx0, by + h + 1, 3, 1, '#f4f4ec'); R(tx0 + 1, by + h + 2, 1, 2, '#0c0a16');
+      lines.forEach((l, i) => T(l, bx + 5, by - 2 + i * 13, '#1a1a24', 'vt', 0, 1, false));
+    }
     if (S.hint) {
       const s = tx[S.hint], w = measure(s, 'vt');
       const hot = S.hint === 'h_still';
@@ -909,7 +1059,7 @@
     ctx.save();
     if (S.shake > 0) ctx.translate(Math.round((Math.random() - 0.5) * 4), Math.round((Math.random() - 0.5) * 4));
     if (S.mode === 'cut') { drawCut(S, tx, t); ctx.restore(); return; }
-    drawScene(S, t);
+    drawScene(S, t, tx);
     ctx.restore();
     drawHud(S, tx, t);
     if (S.mode === 'over') {
