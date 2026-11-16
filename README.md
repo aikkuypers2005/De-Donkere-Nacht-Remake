@@ -7,7 +7,7 @@ Two guards of the Night Watch rise as zombies on the darkest night of the year t
 ## Play
 
 ### Online (GitHub Pages)
-Once GitHub Pages is enabled on this repository, you can play directly at:
+you can play directly at:
 `https://aikkuypers2005.github.io/De-Donkere-Nacht-Remake/`
 
 ### Locally
