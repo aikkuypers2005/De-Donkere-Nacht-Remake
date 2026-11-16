@@ -3,11 +3,13 @@
 (function (root) {
   const DDN = root.DDN = root.DDN || {};
   const W = 480, H = 270, G = 216;           // screen size and ground height
-  const ORDER = ['field', 'forest', 'house', 'hall', 'bath', 'bed', 'chase', 'arena'];
+  const ORDER = ['field', 'forest', 'house', 'hall', 'bath', 'bed', 'chase', 'arena', 'giant'];
   const CHAPTERS = ['field', 'house', 'bath', 'bed', 'arena'];
   const DOOR = 364;                          // front door of the house
   const CHASE_LEN = 5400;
   const SUN_FRAMES = 10800;                  // 3 minutes until sunrise
+  const SUN_CAP = 0.4;                       // the giant fight starts at most this far into the sunrise
+  const WC_X = 446, WC_Y = 172;              // the Laughing Toilet's seat in the arena stands
   const ZERO = { mx: 0, jump: false, act: false };
   const rnd = () => Math.random();
 
@@ -377,7 +379,7 @@
 
   // Chapter 5: the arena. Three phases against leven = 1000, before the sun is up.
   SC.arena = {
-    intro: 'arena', outro: 'ending', chapter: 5,
+    intro: 'arena', outro: 'turn', next: 'giant', chapter: 5,
     solids: [], plats: [],
     init(S) {
       S.v = { open: false, sun: 0, burn: false };
@@ -461,11 +463,197 @@
     }
   };
 
+  // Chapter 5b: the bitten thief has grown into a giant. He cannot be hurt standing up,
+  // so make him slip on a rubber duck from the Laughing Toilet, then bite his head.
+  const REACH = 34;                          // how far in front of him his fist lands
+  const STOMP_UP = 45, FIST_UP = 50, STUN = 300, MAX_BITES = 5;
+  const G_SPEED = [0, 0.6, 0.75, 0.9], G_CD = [0, 190, 150, 115], DUCK_EVERY = [0, 150, 130, 110];
+  const HECKLE = ['w_h1', 'w_h2', 'w_h3', 'w_h4'];
+  function wcSay(S, k) { S.v.ws = k; S.v.wsT = 140; }
+  function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
+  // Lying on his back he is 106 px long, head behind him: keep all of him inside the arena.
+  function lieRange(g) { return g.face > 0 ? [62, W - 52] : [52, W - 62]; }
+  function headBox(g) { const hx = g.x - g.face * 48; return { x: hx - 11, y: G - 22, w: 22, h: 22 }; }
+  function slip(S, g, d) {
+    g.st = 'slip'; g.t = 0; g.fx = 0;
+    d.st = 'fly'; d.t = 0; d.y = G - 4; d.vx = -g.face * 1.5; d.vy = -5;
+    ev(S, 'squeak'); wcSay(S, 'w_slip');
+  }
+  function toWalk(g, ph) { g.st = 'walk'; g.t = 0; g.cd = G_CD[ph] + rnd() * 60; }
+
+  SC.giant = {
+    outro: 'ending', chapter: 5,
+    solids: [], plats: [],
+    init(S) {
+      S.v = { open: false, sun: S.sun0, burn: false, dt: 90, ws: 'w_h1', wsT: 150, wt: 0 };
+      S.ents.push({ type: 'giant', x: 380, face: -1, hp: 1000, st: 'roar', t: 0, inv: 0, cd: 160, bites: 0, walk: 0, mv: false, fx: 0, tx: 0 });
+    },
+    goal(S) { const g = S.ents.find(e => e.type === 'giant'); return { k: g && g.st === 'down' ? 'g_giant2' : 'g_giant' }; },
+    update(S) {
+      const v = S.v, g = S.ents.find(e => e.type === 'giant');
+      v.sun += 1 / SUN_FRAMES;
+      if (v.sun >= 1 && !v.burn) {
+        v.burn = true; ev(S, 'burn');
+        for (const p of humans(S)) if (!p.down) { p.hp = 0; p.down = 1; }
+      }
+      if (v.wsT > 0) v.wsT--;
+      if (v.wt > 0) v.wt--;
+      if (!g) return;
+      const ph = g.hp > 700 ? 1 : g.hp > 350 ? 2 : 3;
+      const tg = nearest(S, g.x);
+      g.t++; if (g.inv > 0) g.inv--;
+      g.mv = false;
+      const ducks = S.ents.filter(e => e.type === 'duck' && e.st !== 'fly');
+      const under = ducks.find(d => d.st === 'ground' && Math.abs(d.x - g.x) < 20);
+
+      if (g.st === 'walk') {
+        const d = tg ? tg.x - g.x : 0;
+        if (Math.abs(d) > 2) g.face = d > 0 ? 1 : -1;
+        if (tg && Math.abs(d) > 6) { g.x += g.face * G_SPEED[ph]; g.walk += G_SPEED[ph]; g.mv = true; }
+        g.cd -= tg && Math.abs(d) < 70 ? 3 : 1;      // close by, he loses patience faster
+        if (under) slip(S, g, under);
+        else if (g.cd <= 0 && tg) {
+          const ad = Math.abs(d);
+          if (ad < 18 || ad > 110 || rnd() < 0.4) { g.st = 'stomp'; g.t = 0; }
+          else { g.st = 'fist'; g.t = 0; g.tx = clamp(tg.x, 12, W - 12); g.face = d >= 0 ? 1 : -1; }
+          if (rnd() < 0.5) wcSay(S, 'w_h4');
+        }
+      } else if (g.st === 'stomp') {
+        if (g.t === STOMP_UP) {
+          if (under) slip(S, g, under);          // the foot comes down on a duck
+          else {
+            S.shake = 12; ev(S, 'thud'); ev(S, 'rumble');
+            S.ents.push({ type: 'shock', x: g.x - 20, vx: -2.4 }, { type: 'shock', x: g.x + 20, vx: 2.4 });
+            // stones tumble out of the stands, one near each zombie
+            const pl = alive(S), n = ph === 1 ? 2 : 3, xs = [];
+            for (let i = 0; i < n; i++) {
+              let x = 0;
+              for (let k = 0; k < 6; k++) {
+                x = clamp(i < pl.length ? pl[i].x + (rnd() - 0.5) * 50 : 30 + rnd() * 420, 12, W - 12);
+                if (xs.every(o => Math.abs(o - x) > 28)) break;
+              }
+              xs.push(x);
+              S.ents.push({ type: 'stone', x, y: 70, vy: -2 });
+            }
+            for (const p of humans(S)) if (!p.down && p.y > G - 20 && Math.abs(p.x - (g.x + g.face * 6)) < 18) hurt(S, p, p.x < g.x ? -1 : 1);
+          }
+        }
+        if (g.st === 'stomp' && g.t >= STOMP_UP + 28) toWalk(g, ph);
+      } else if (g.st === 'fist') {
+        // he lines his fist up with the shadow, then slams it down
+        if (g.t < FIST_UP - 8) {
+          const want = clamp(g.tx - g.face * REACH, 24, W - 24);
+          g.x += clamp(want - g.x, -2, 2);
+        }
+        g.fx = g.x + g.face * REACH;
+        if (under) slip(S, g, under);
+        else {
+          if (g.t === FIST_UP) {
+            S.shake = 10; ev(S, 'thud');
+            for (const p of humans(S)) if (!p.down && p.y > G - 30 && Math.abs(p.x - g.fx) < 15) hurt(S, p, p.x < g.fx ? -1 : 1);
+          }
+          if (g.t >= FIST_UP + 30) toWalk(g, ph);
+        }
+      } else if (g.st === 'slip') {
+        const r = lieRange(g);
+        g.x += g.face * 0.8;
+        g.x += clamp(clamp(g.x, r[0], r[1]) - g.x, -1.5, 1.5);
+        if (g.t >= 36) { g.st = 'down'; g.t = 0; g.bites = 0; S.shake = 14; ev(S, 'thud'); }
+      } else if (g.st === 'down') {
+        if (g.t >= STUN || (g.bites >= MAX_BITES && g.inv <= 15)) { g.st = 'getup'; g.t = 0; wcSay(S, 'w_up'); }
+      } else if (g.st === 'getup') {
+        if (g.t >= 45) { g.st = 'roar'; g.t = 0; }
+      } else if (g.st === 'roar') {
+        if (g.t === 1) { ev(S, 'roar'); S.shake = 20; }
+        if (g.t >= 6 && g.t <= 40) {
+          // the roar blows everybody (and every duck near his feet) away, without hurting
+          for (const p of S.players) if (!p.down && Math.abs(p.x - g.x) < 230) p.kb = (p.x < g.x ? -1 : 1) * 3;
+          for (const d of ducks) if (d.st === 'ground' && Math.abs(d.x - g.x) < 40) d.vx = (d.x < g.x ? -1 : 1) * 3;
+        }
+        if (g.t >= 70) toWalk(g, ph);
+      }
+      if (g.st !== 'slip' && g.st !== 'down') g.x = clamp(g.x, 24, W - 24);
+
+      // his walking legs hurt (not right after an attack, so you can get out from under him)
+      if (g.st === 'walk' && g.mv && g.t > 30) {
+        for (const p of humans(S)) if (!p.down && hit(pbox(p), { x: g.x - 15, y: G - 48, w: 30, h: 48 })) {
+          const dir = p.x < g.x ? -1 : 1;
+          if (hurt(S, p, dir)) p.kb = dir * 4.5;
+        }
+      }
+
+      // bites: a duck gets kicked, his head only counts while he lies down, the rest is too tough
+      const down = g.st === 'down';
+      const body = down ? { x: g.x + (g.face > 0 ? -36 : -48), y: G - 36, w: 84, h: 36 } : { x: g.x - 20, y: G - 112, w: 40, h: 112 };
+      for (const p of humans(S)) {
+        let kicked = false;
+        for (const d of ducks) {
+          if (d.st === 'ground' && bites(p, { x: d.x - 5, y: G - 10, w: 10, h: 10 })) { d.vx = p.face * 4.6; d.k = 1; ev(S, 'quack'); kicked = true; break; }
+        }
+        if (kicked) continue;
+        if (down && bites(p, headBox(g))) {
+          if (g.inv <= 0 && g.bites < MAX_BITES) {
+            g.hp -= 60; g.inv = 35; g.bites++; S.shake = 6; ev(S, 'bosshit');
+            if (g.hp <= 0) { g.hp = 0; remove(S, e => e.type !== 'giant'); complete(S); return; }
+          }
+        } else if (bites(p, body)) ev(S, 'clang');
+      }
+
+      // the Laughing Toilet throws a new duck when there is none on the sand
+      if (!ducks.length && --v.dt <= 0) {
+        v.dt = DUCK_EVERY[ph];
+        let tx = 0;
+        for (let k = 0; k < 8; k++) { tx = 40 + rnd() * 400; if (Math.abs(tx - g.x) > 80) break; }
+        const T = 56, x0 = WC_X - 8, y0 = WC_Y - 30;
+        S.ents.push({ type: 'duck', x: x0, y: y0, vx: (tx - x0) / T, vy: (G - y0 - 0.1 * T * T) / T, st: 'air', t: 0, k: 0 });
+        ev(S, 'throw'); wcSay(S, 'w_duck'); v.wt = 24;
+      } else if (v.wsT <= 0 && rnd() < 0.004) wcSay(S, HECKLE[(rnd() * HECKLE.length) | 0]);
+
+      for (const e of S.ents) {
+        let box = null;
+        if (e.type === 'duck') {
+          e.t++;
+          if (e.st === 'air') {
+            e.x += e.vx; e.y += e.vy; e.vy += 0.2;
+            if (e.y >= G) { e.y = G; e.st = 'ground'; e.vx *= 0.3; ev(S, 'pop'); }
+          } else if (e.st === 'ground') {
+            e.x += e.vx; e.vx *= 0.975;
+            if (Math.abs(e.vx) < 0.05) e.vx = 0;
+            if ((e.x < 8 && e.vx < 0) || (e.x > W - 8 && e.vx > 0)) e.vx = -e.vx * 0.6;
+            e.x = clamp(e.x, 6, W - 6);
+          } else {
+            e.x += e.vx; e.y += e.vy; e.vy += 0.25;
+            if (e.t > 60) e.dead = 1;
+          }
+        } else if (e.type === 'stone') {
+          e.y += e.vy; e.vy += 0.16;
+          if (e.y >= G - 4) { e.dead = 1; ev(S, 'thud'); }
+          box = { x: e.x - 5, y: e.y - 5, w: 10, h: 10 };
+        } else if (e.type === 'shock') {
+          e.x += e.vx;
+          if (e.x < -20 || e.x > W + 20) e.dead = 1;
+          box = { x: e.x - 6, y: G - 10, w: 12, h: 10 };
+        }
+        if (!box) continue;
+        for (const p of humans(S)) if (!p.down && hit(pbox(p), box)) {
+          if (hurt(S, p, e.vx < 0 ? -1 : e.vx > 0 ? 1 : (p.x < e.x ? -1 : 1)) && e.type === 'stone') e.dead = 1;
+        }
+      }
+      remove(S, e => e.dead);
+
+      // hints for what to do right now
+      if (down) S.hint = 'h_head';
+      else if (g.st === 'stomp' && g.t < STOMP_UP + 20) S.hint = 'h_stomp';
+      else if (g.st === 'fist' && g.t < FIST_UP + 5) S.hint = 'h_fist';
+      else S.hint = ducks.some(d => d.st === 'ground') ? 'h_kick' : 'h_wait';
+    }
+  };
+
   // ------------------------------------------------------------------ flow
   function newGame(opts) {
     opts = opts || {};
     const S = { tick: 0, mode: 'play', scene: null, ents: [], v: {}, cut: null, evs: [], evN: 0, msg: null, msgT: 0,
-      hint: null, shake: 0, overT: 0, overWhy: '', endT: 0, downT: 0, paused: false, two: opts.players === 2,
+      hint: null, shake: 0, overT: 0, overWhy: '', endT: 0, downT: 0, paused: false, two: opts.players === 2, sun0: SUN_CAP,
       players: [mkPlayer(0), mkPlayer(1)], pp: [{ j: false, a: false }, { j: false, a: false }] };
     S.players[1].ai = !S.two;
     startScene(S, opts.scene || 'field', true);
@@ -473,6 +661,8 @@
   }
 
   function startScene(S, id, first) {
+    // the sunrise carries over from the arena into the giant fight, capped so the fight stays winnable
+    if (id === 'giant' && S.scene === 'arena') S.sun0 = Math.min(SUN_CAP, S.v.sun || 0);
     S.scene = id; S.ents = []; S.v = {}; S.hint = null; S.msg = null; S.msgT = 0;
     S.mode = 'play'; S.overT = 0; S.downT = 0; S.cut = null;
     for (const p of S.players) {
@@ -629,6 +819,6 @@
   }
 
   for (const id in SC) SC[id].id = id;
-  DDN.sim = { W, H, G, ORDER, CHAPTERS, DOOR, CHASE_LEN, SC, newGame, startScene, step, skip, humans, biteBox };
+  DDN.sim = { W, H, G, ORDER, CHAPTERS, DOOR, CHASE_LEN, SUN_FRAMES, SUN_CAP, WC_X, WC_Y, REACH, STUN, MAX_BITES, STOMP_UP, FIST_UP, SC, newGame, startScene, step, skip, humans, biteBox };
   if (typeof module !== 'undefined') module.exports = DDN;
 })(typeof window !== 'undefined' ? window : globalThis);

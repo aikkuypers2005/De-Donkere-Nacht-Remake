@@ -141,19 +141,157 @@
   }
 
   const TH = { suit: '#f07a18', dark: '#b85a10', skin: '#8a5a3a', sdark: '#6a4028' };
+  // After the bite his skin turns greener in steps (o.sk), and from the chase on he wears a plaster (o.pl).
+  const TH1 = { skin: '#7e8a3a', sdark: '#5e6a28' }, TH2 = { skin: '#8cc43c', sdark: '#6a9a2c' };
   function thief(P, o) {
-    const b = o.bob || 0;
+    const b = o.bob || 0, sk = o.sk || TH;
     const legs = o.legs || [[-4, 0], [1, 0]];
     for (const [lx, up] of legs) { P(lx, -7 - up, 3, 7, TH.dark); P(lx, -1 - up, 4, 1, '#3a2418'); }
     if (o.roll) { P(-9, -24 + b, 3, 14, '#dccaa0'); P(-9, -24 + b, 3, 1, '#a08860'); P(-9, -11 + b, 3, 1, '#a08860'); }
     P(-5, -19 + b, 10, 12, TH.suit); P(-5, -19 + b, 2, 12, TH.dark); P(-1, -19 + b, 1, 12, TH.dark);
-    P(-4, -28 + b, 8, 9, TH.skin); P(-3, -29 + b, 6, 1, TH.skin); P(-4, -28 + b, 2, 9, TH.sdark);
-    P(1, -26 + b, 2, 2, '#fff'); P(2, -25 + b, 1, 1, '#111');
+    if (o.pl) { P(-7, -10 + b, 3, 3, '#f4efe0'); P(-6, -9 + b, 1, 1, '#c8b494'); }
+    P(-4, -28 + b, 8, 9, sk.skin); P(-3, -29 + b, 6, 1, sk.skin); P(-4, -28 + b, 2, 9, sk.sdark);
+    if (o.arms === 'ouch') { P(1, -27 + b, 3, 3, '#fff'); P(2, -26 + b, 1, 1, '#111'); }
+    else { P(1, -26 + b, 2, 2, '#fff'); P(2, -25 + b, 1, 1, '#111'); }
     if (o.mouth) P(1, -22 + b, 3, 2, '#3a0a0a'); else P(1, -21 + b, 3, 1, '#4a2a1a');
-    if (o.arms === 'up') { P(-7, -27 + b, 2, 9, TH.suit); P(5, -27 + b, 2, 9, TH.suit); P(-7, -29 + b, 2, 2, TH.skin); P(5, -29 + b, 2, 2, TH.skin); }
-    else if (o.arms === 'throw') { P(-7, -18 + b, 2, 7, TH.suit); P(5, -28 + b, 2, 10, TH.suit); P(5, -30 + b, 3, 2, TH.skin); }
+    if (o.arms === 'up') { P(-7, -27 + b, 2, 9, TH.suit); P(5, -27 + b, 2, 9, TH.suit); P(-7, -29 + b, 2, 2, sk.skin); P(5, -29 + b, 2, 2, sk.skin); }
+    else if (o.arms === 'throw') { P(-7, -18 + b, 2, 7, TH.suit); P(5, -28 + b, 2, 10, TH.suit); P(5, -30 + b, 3, 2, sk.skin); }
     else if (o.arms === 'knee') { P(-6, -17 + b, 2, 8, TH.suit); P(4, -17 + b, 2, 8, TH.suit); P(8, -27 + b, 1, 2, '#8fd0ff'); P(9, -22 + b, 1, 2, '#8fd0ff'); }
+    else if (o.arms === 'ouch') { P(-7, -18 + b, 2, 6, TH.suit); P(-8, -12 + b, 3, 2, sk.skin); P(5, -27 + b, 2, 9, TH.suit); P(5, -29 + b, 2, 2, sk.skin); }
+    else if (o.arms === 'itch') {
+      // one hand scratching his behind
+      P(5, -18 + b, 2, 7, TH.suit); P(-7, -18 + b, 2, 5, TH.suit); P(-8, -13 + b + (o.ih || 0), 3, 2, sk.skin);
+      if (o.ih) { P(-10, -15 + b, 1, 1, '#ffffff'); P(-11, -11 + b, 1, 1, '#ffffff'); }
+    }
     else { P(-7, -18 + b + (o.swing || 0), 2, 7, TH.suit); P(5, -18 + b - (o.swing || 0), 2, 7, TH.suit); }
+  }
+
+  // The giant: the thief after the bite, four times as big. Drawn at full size, facing right, feet at 0,0.
+  const GC = { skin: '#8cc43c', sd: '#6a9a2c', deep: '#4a7420', lt: '#b4e06a', suit: '#f07a18', su2: '#b85a10', su3: '#8a3e08',
+    tooth: '#f4f0d8', eye: '#f4f0a0', mouth: '#3a0a0a', tongue: '#e8507c', pl: '#f4efe0', pl2: '#d4c4a8', hair: '#2a2a18', nail: '#e8e0a0' };
+  function gFist(P, x, y, back) {
+    const sk = back ? GC.sd : GC.skin, sd = back ? GC.deep : GC.sd;
+    P(x, y, 13, 12, sk); P(x, y + 9, 13, 3, sd); P(x, y, 2, 12, sd);
+    P(x + 4, y + 1, 1, 4, sd); P(x + 7, y + 1, 1, 4, sd); P(x + 10, y + 1, 1, 4, sd);
+  }
+  function gLeg(P, x, up, back) {
+    const sk = back ? GC.sd : GC.skin, sd = back ? GC.deep : GC.sd, su = back ? GC.su2 : GC.suit, s2 = back ? GC.su3 : GC.su2;
+    P(x, -46 - up, 13, 28, su); P(x, -46 - up, 3, 28, s2);                                        // trouser leg
+    P(x + 2, -16 - up, 9, 10, sk); P(x + 2, -16 - up, 2, 10, sd);                                 // shin
+    P(x, -7 - up, 18, 7, sk); P(x, -2 - up, 18, 2, sd); P(x, -7 - up, 2, 7, sd);                 // big bare foot
+    P(x + 12, -6 - up, 1, 3, sd); P(x + 15, -6 - up, 1, 3, sd); P(x + 16, -7 - up, 2, 1, GC.nail);
+    P(x + 1, -18 - up, 3, 2, su); P(x + 7, -18 - up, 4, 3, su); P(x + 5, -18 - up, 1, 1, s2);    // the trousers tore at the knee
+  }
+  function gHead(P, hx, hy, mouth) {
+    P(-4 + hx, -92 + hy, 18, 6, GC.sd);                                                           // neck
+    P(-8 + hx, -112 + hy, 24, 22, GC.skin); P(-6 + hx, -114 + hy, 20, 2, GC.skin); P(16 + hx, -108 + hy, 2, 14, GC.skin);
+    P(-8 + hx, -112 + hy, 4, 22, GC.sd); P(-6 + hx, -114 + hy, 3, 2, GC.sd);
+    P(-3 + hx, -104 + hy, 4, 7, GC.sd); P(-2 + hx, -103 + hy, 2, 5, GC.deep);                    // ear
+    P(1 + hx, -117 + hy, 1, 3, GC.hair); P(4 + hx, -118 + hy, 1, 4, GC.hair); P(7 + hx, -117 + hy, 1, 3, GC.hair);
+    P(5 + hx, -109 + hy, 12, 2, GC.deep); P(13 + hx, -110 + hy, 4, 1, GC.deep);                   // one big cross eyebrow
+    if (mouth === 3) { P(8 + hx, -108 + hy, 6, 5, GC.eye); P(11 + hx, -106 + hy, 2, 2, '#111'); }
+    else { P(9 + hx, -106 + hy, 5, 3, GC.eye); P(12 + hx, -105 + hy, 2, 2, '#111'); }
+    P(4 + hx, -94 + hy, 15, 4, GC.skin);                                                          // big chin
+    if (mouth === 2) {                                                                            // roaring
+      P(6 + hx, -100 + hy, 13, 10, GC.mouth); P(8 + hx, -93 + hy, 9, 2, GC.tongue);
+      P(7 + hx, -100 + hy, 2, 2, GC.tooth); P(16 + hx, -100 + hy, 2, 2, GC.tooth); P(9 + hx, -92 + hy, 2, 2, GC.tooth); P(14 + hx, -92 + hy, 2, 2, GC.tooth);
+      P(4 + hx, -90 + hy, 15, 3, GC.skin);
+    } else if (mouth === 3) P(10 + hx, -98 + hy, 6, 5, GC.mouth);                                // surprised
+    else if (mouth === 1) { P(7 + hx, -98 + hy, 12, 3, GC.mouth); P(8 + hx, -98 + hy, 10, 1, GC.tooth); }
+    else { P(8 + hx, -97 + hy, 10, 2, GC.mouth); P(9 + hx, -99 + hy, 2, 2, GC.tooth); P(15 + hx, -99 + hy, 2, 2, GC.tooth); }
+    P(15 + hx, -104 + hy, 5, 6, GC.sd); P(16 + hx, -105 + hy, 3, 1, GC.skin);                    // nose
+  }
+  function gArmBack(P, X, Y, arm) {
+    const sx = -18 + X, sy = -84 + Y;
+    if (arm === 'out') { P(sx - 8, sy - 2, 12, 9, GC.su3); P(sx - 20, sy - 8, 14, 8, GC.sd); gFist(P, sx - 32, sy - 18, true); }
+    else { P(sx - 5, sy + 2, 10, 14, GC.su3); P(sx - 4, sy + 16, 8, 20, GC.sd); gFist(P, sx - 7, sy + 34, true); }
+  }
+  function gArm(P, X, Y, arm) {
+    const sx = 10 + X, sy = -84 + Y;
+    if (arm === 'up') {
+      P(sx, sy - 4, 11, 12, GC.suit); P(sx, sy - 4, 2, 12, GC.su2);
+      P(sx + 1, sy - 26, 9, 22, GC.skin); P(sx + 1, sy - 26, 2, 22, GC.sd);
+      gFist(P, sx - 1, sy - 38);
+    } else if (arm === 'down') {
+      // reaching down to the sand, the fist lands REACH px in front of him
+      for (let i = 0; i < 8; i++) P(sx + 1 + i * 1.5, sy + i * 8, 10, 10, i < 2 ? GC.suit : GC.skin);
+      P(sx + 1, sy, 2, 16, GC.su2);
+      gFist(P, sim.REACH - 6, -12);
+    } else if (arm === 'out') {
+      P(sx, sy, 11, 10, GC.suit); P(sx + 8, sy - 6, 14, 8, GC.skin); P(sx + 8, sy - 6, 14, 2, GC.lt);
+      gFist(P, sx + 20, sy - 16);
+    } else {
+      P(sx, sy, 11, 14, GC.suit); P(sx, sy, 2, 14, GC.su2); P(sx + 7, sy + 14, 3, 2, GC.suit);
+      P(sx + 1, sy + 14, 9, 22, GC.skin); P(sx + 1, sy + 14, 2, 22, GC.sd);
+      gFist(P, sx - 1, sy + 34);
+    }
+  }
+  function gTorso(P, X, Y) {
+    P(-20 + X, -86 + Y, 38, 44, GC.suit);                                                         // the suit, stretched tight
+    P(18 + X, -78 + Y, 4, 30, GC.suit); P(22 + X, -70 + Y, 2, 16, GC.suit);                      // belly
+    P(-23 + X, -56 + Y, 4, 14, GC.suit);                                                          // behind
+    P(-20 + X, -86 + Y, 4, 44, GC.su2); P(-23 + X, -56 + Y, 2, 14, GC.su2); P(-18 + X, -44 + Y, 38, 2, GC.su2);
+    P(-14 + X, -88 + Y, 30, 3, GC.su2);                                                           // collar
+    P(5 + X, -85 + Y, 1, 26, GC.su2);                                                             // zip
+    P(6 + X, -58 + Y, 12, 9, GC.skin); P(8 + X, -60 + Y, 7, 2, GC.skin); P(7 + X, -49 + Y, 9, 1, GC.skin); P(12 + X, -54 + Y, 2, 1, GC.deep);
+    P(-12 + X, -78 + Y, 6, 4, GC.skin); P(-11 + X, -79 + Y, 3, 1, GC.skin); P(-6 + X, -52 + Y, 4, 3, GC.skin);    // rips
+    P(-26 + X, -54 + Y, 7, 8, GC.pl); P(-25 + X, -52 + Y, 4, 4, GC.pl2); P(-26 + X, -54 + Y, 7, 1, '#ffffff');    // the plaster, giant-sized now
+  }
+  // lf / lb: [forward, lift] of the front and back leg. lean / dip move the upper body.
+  function giant(P, o) {
+    const X = o.lean || 0, Y = (o.bob || 0) + (o.dip || 0), lf = o.lf || [0, 0], lb = o.lb || [0, 0];
+    gArmBack(P, X, Y, o.arm);
+    gLeg(P, -16 + lb[0], lb[1], true);
+    gLeg(P, 1 + lf[0], lf[1], false);
+    gTorso(P, X, Y);
+    gHead(P, X + (o.hx || 0), Y + (o.hy || 0), o.mouth || 0);
+    gArm(P, X, Y, o.arm);
+  }
+  function giantSlip(P) {
+    gLeg(P, -14, 0, true);
+    // the front leg flies up in front of him
+    P(-4, -52, 28, 12, GC.suit); P(-4, -42, 28, 2, GC.su2); P(22, -51, 10, 9, GC.skin);
+    P(31, -62, 7, 20, GC.skin); P(31, -62, 2, 20, GC.sd); P(32, -64, 2, 2, GC.skin); P(35, -64, 2, 2, GC.skin); P(36, -60, 2, 1, GC.nail);
+    P(-46, -98, 8, 18, GC.sd); gFist(P, -50, -110, true);
+    // falling over backwards: each slice of the body a bit further back
+    for (let i = 0; i < 8; i++) { P(-20 - i * 2, -50 - i * 6, 38, 7, GC.suit); P(-20 - i * 2, -50 - i * 6, 4, 7, GC.su2); }
+    P(-2, -64, 10, 7, GC.skin); P(3, -61, 2, 1, GC.deep);
+    P(-26, -54, 7, 8, GC.pl); P(-25, -52, 4, 4, GC.pl2);
+    gHead(P, -18, 4, 3);
+    P(-2, -96, 9, 20, GC.skin); P(-2, -96, 2, 20, GC.sd); gFist(P, -4, -108);
+    P(-34, -122, 1, 2, '#8fd0ff'); P(6, -120, 1, 2, '#8fd0ff'); P(10, -114, 1, 2, '#8fd0ff');
+  }
+  function giantLie(P) {
+    // flat on his back: head on the left, feet in the air on the right
+    P(6, -22, 28, 12, GC.su2); P(32, -24, 9, 12, GC.sd); P(38, -40, 7, 18, GC.sd); P(38, -42, 2, 2, GC.sd); P(42, -42, 2, 2, GC.sd);
+    P(-30, -4, 20, 4, GC.sd);
+    P(-38, -26, 46, 24, GC.suit); P(-34, -32, 38, 6, GC.suit); P(-28, -36, 26, 4, GC.suit); P(-22, -38, 14, 2, GC.suit);
+    P(-38, -6, 46, 4, GC.su2); P(-38, -26, 3, 20, GC.su2);
+    P(-18, -37, 10, 5, GC.skin); P(-14, -35, 2, 1, GC.deep); P(-32, -22, 5, 4, GC.skin); P(-4, -29, 4, 3, GC.skin);
+    P(2, -4, 8, 4, GC.pl);                                                                        // the plaster peeks out underneath
+    P(4, -18, 30, 12, GC.suit); P(4, -8, 30, 2, GC.su2);
+    P(32, -20, 10, 13, GC.skin); P(40, -38, 8, 20, GC.skin); P(40, -38, 2, 20, GC.sd); P(41, -40, 2, 2, GC.skin); P(45, -40, 2, 2, GC.skin); P(45, -36, 2, 1, GC.nail);
+    P(-26, -10, 24, 8, GC.skin); P(-26, -10, 24, 2, GC.lt); P(-4, -11, 10, 9, GC.skin); P(5, -10, 3, 2, GC.skin); P(5, -6, 3, 2, GC.skin);
+    P(-38, -16, 6, 10, GC.sd);                                                                    // neck
+    P(-60, -22, 24, 22, GC.skin); P(-62, -20, 2, 18, GC.skin); P(-60, -4, 24, 4, GC.sd);
+    P(-50, -13, 4, 6, GC.sd); P(-49, -12, 2, 4, GC.deep);                                         // ear
+    P(-66, -15, 4, 1, GC.hair); P(-67, -12, 5, 1, GC.hair); P(-66, -9, 4, 1, GC.hair);
+    P(-57, -26, 5, 4, GC.eye);                                                                    // a dizzy X for an eye
+    for (const [x, y] of [[-56, -26], [-54, -26], [-55, -25], [-56, -24], [-54, -24]]) P(x, y, 1, 1, '#111');
+    P(-50, -28, 5, 6, GC.sd); P(-49, -29, 3, 1, GC.skin);                                         // nose in the air
+    P(-44, -25, 6, 3, GC.mouth); P(-43, -28, 3, 3, GC.tongue); P(-44, -25, 1, 1, GC.tooth); P(-40, -25, 1, 1, GC.tooth);
+    P(-38, -24, 3, 4, GC.skin);
+  }
+  function giantSit(P) {
+    // sitting up, dizzy, rubbing the bump on his head
+    P(-36, -10, 12, 6, GC.sd); P(-32, -50, 8, 40, GC.sd);
+    P(-4, -16, 32, 12, GC.su2); P(26, -14, 10, 12, GC.sd); P(34, -20, 7, 20, GC.sd);
+    P(0, -14, 32, 12, GC.suit); P(0, -4, 32, 2, GC.su2); P(28, -12, 10, 12, GC.skin); P(37, -18, 7, 18, GC.skin); P(37, -18, 2, 18, GC.sd); P(42, -20, 2, 2, GC.skin);
+    P(-24, -62, 38, 50, GC.suit); P(14, -54, 4, 30, GC.suit); P(-24, -62, 4, 50, GC.su2); P(-18, -64, 30, 3, GC.su2);
+    P(2, -40, 10, 8, GC.skin); P(6, -37, 2, 1, GC.deep); P(-12, -54, 5, 3, GC.skin);
+    gHead(P, -4, 28, 3);
+    P(-12, -86, 4, 3, GC.lt);                                                                     // the bump
+    P(8, -62, 9, 12, GC.suit); P(6, -80, 9, 20, GC.skin); P(6, -80, 2, 20, GC.sd); gFist(P, -2, -92);
   }
 
   function buildSprites() {
@@ -170,12 +308,40 @@
         P(-4, -8, 8, 8, c.skin); P(1, -6, 2, 2, '#fff'); P(2, -5, 1, 1, '#111'); P(-6, -9, 12, 2, c.hat); P(-3, -11, 6, 2, c.hat);
       });
     }
-    const tk = (name, o) => make('t_' + name, 24, 34, 11, 33, P => thief(P, o));
-    tk('r0', { legs: [[-6, 1], [3, 0]], swing: 2, roll: 1 }); tk('r1', { bob: 1, roll: 1 });
-    tk('r2', { legs: [[-2, 0], [3, 2]], swing: -2, roll: 1 }); tk('r3', { bob: 1, roll: 1 });
-    tk('stand', { roll: 1 }); tk('pant', { bob: 2, arms: 'knee', mouth: 1, roll: 1 });
-    tk('throw', { arms: 'throw', mouth: 1, roll: 1 }); tk('scared', { arms: 'up', mouth: 1, roll: 1 });
-    tk('scared2', { arms: 'up', mouth: 1 });
+    // Thief sets: 't_' as he starts, 'tp_' with the plaster, 'tp1_' and 'tp2_' greener as the arena goes on.
+    const TSETS = { '': [TH, false], p: [TH, true], p1: [TH1, true], p2: [TH2, true] };
+    for (const set in TSETS) {
+      const tk = (name, o) => make('t' + set + '_' + name, 24, 34, 11, 33, P => thief(P, Object.assign({ sk: TSETS[set][0], pl: TSETS[set][1] }, o)));
+      tk('r0', { legs: [[-6, 1], [3, 0]], swing: 2, roll: 1 }); tk('r1', { bob: 1, roll: 1 });
+      tk('r2', { legs: [[-2, 0], [3, 2]], swing: -2, roll: 1 }); tk('r3', { bob: 1, roll: 1 });
+      tk('stand', { roll: 1 }); tk('pant', { bob: 2, arms: 'knee', mouth: 1, roll: 1 });
+      tk('throw', { arms: 'throw', mouth: 1, roll: 1 }); tk('scared', { arms: 'up', mouth: 1, roll: 1 });
+      tk('scared2', { arms: 'up', mouth: 1 });
+      tk('ouch', { arms: 'ouch', mouth: 1, legs: [[-5, 2], [2, 3]], roll: 1 });
+      tk('itch0', { arms: 'itch', mouth: 1, bob: 1, roll: 1 }); tk('itch1', { arms: 'itch', mouth: 1, bob: 2, ih: 1, roll: 1 });
+    }
+
+    // the giant, one native-size sprite per pose
+    const gk = (name, o) => make('g_' + name, 104, 136, 52, 134, P => giant(P, o));
+    gk('w0', { lf: [4, 0], lb: [-4, 0] }); gk('w1', { lf: [0, 5], bob: -1 }); gk('w2', { lf: [-4, 0], lb: [4, 0] }); gk('w3', { lb: [0, 5], bob: -1 });
+    gk('footup', { lf: [7, 22], lb: [-3, 0], arm: 'out', mouth: 1 });
+    gk('stomp', { lf: [7, 0], lb: [-4, 0], bob: 3, mouth: 2 });
+    gk('fistup', { lf: [4, 0], lb: [-5, 0], arm: 'up', mouth: 1 });
+    gk('fistdown', { lf: [6, 0], lb: [-6, 0], arm: 'down', lean: 8, dip: 6, mouth: 2 });
+    gk('roar', { lf: [5, 0], lb: [-5, 0], arm: 'out', mouth: 2, hy: -2 });
+    make('g_slip', 104, 136, 52, 134, giantSlip);
+    make('g_getup', 104, 136, 52, 134, giantSit);
+    make('g_lie', 132, 52, 68, 50, giantLie);
+    // what is left after the first sunbeam: dust, rags and the plaster
+    make('g_dust', 112, 36, 56, 34, P => {
+      P(-46, -6, 92, 6, '#7e8064'); P(-38, -12, 76, 6, '#8e9070'); P(-28, -18, 56, 6, '#9ea07e'); P(-16, -23, 32, 5, '#aeb08c'); P(-8, -26, 16, 3, '#bcbe9a');
+      [[-36, -8], [-20, -15], [6, -10], [24, -14], [34, -5], [-6, -20], [12, -21]].forEach(([x, y], i) => P(x, y, 2, 1, i % 2 ? GC.sd : '#6e7056'));
+      P(-24, -15, 10, 3, GC.suit); P(-22, -13, 4, 2, GC.su2); P(14, -9, 12, 3, GC.su2); P(16, -10, 6, 1, GC.suit); P(-40, -5, 8, 2, GC.suit);
+      P(28, -15, 1, 3, GC.hair); P(30, -16, 1, 4, GC.hair); P(32, -15, 1, 3, GC.hair);
+      P(-5, -31, 10, 6, GC.pl); P(-2, -29, 4, 2, GC.pl2); P(-5, -31, 10, 1, '#ffffff');
+    });
+    make('stone', 12, 10, 6, 5, P => { P(-5, -4, 10, 8, '#9a9488'); P(-5, -4, 10, 2, '#bab4a6'); P(-5, -4, 2, 8, '#7a7468'); P(1, 0, 3, 1, '#6a6458'); });
+    make('plaster', 10, 7, 5, 3, P => { P(-5, -3, 10, 7, '#f4efe0'); P(-2, -1, 4, 3, '#d4c4a8'); P(-4, -2, 1, 1, '#d4c4a8'); P(3, 2, 1, 1, '#d4c4a8'); });
 
     const bat = (key, up) => make(key, 20, 12, 10, 7, P => {
       P(-2, -3, 5, 6, '#4a3568'); P(-2, -5, 1, 2, '#4a3568'); P(2, -5, 1, 2, '#4a3568');
@@ -477,7 +643,22 @@
       else T('!', 418, 150, '#ff4040', 'ps', 0, 2);
     }
     if (id === 'chase') {
-      blit('t_' + (v.thr > 0 ? 'throw' : 'r' + (Math.floor(t / 5) % 4)), 432, G, v.thr > 0);
+      blit('tp_' + (v.thr > 0 ? 'throw' : 'r' + (Math.floor(t / 5) % 4)), 432, G, v.thr > 0);
+    }
+    if (id === 'giant') {
+      // the Laughing Toilet watches from the stands, the canvas lies where the thief threw it
+      blit('wc_open', sim.WC_X + (v.wsT > 0 ? Math.floor(t / 4) % 2 : 0), sim.WC_Y - (v.wt > 0 ? 3 : 0));
+      blit('roll', 22, G);
+      // shadows: where a stone will land, and where the fist will come down
+      const shadow = (x, w, a) => { const c = 'rgba(30,10,6,' + a.toFixed(2) + ')'; R(x - w / 2, G - 1, w, 5, c); R(x - w / 2 + 3, G - 2, w - 6, 7, c); };
+      for (const e of S.ents) {
+        if (e.type === 'stone') shadow(e.x, 8 + Math.round(Math.max(0, Math.min(1, (e.y - 50) / (G - 50))) * 8), 0.5);
+        else if (e.type === 'giant' && e.st === 'fist' && e.t < sim.FIST_UP) {
+          const k = e.t / sim.FIST_UP, w = 16 + Math.round(k * 14);
+          shadow(e.fx, w, 0.3 + 0.3 * k);
+          if (e.t > sim.FIST_UP - 16 && Math.floor(t / 3) % 2) { R(e.fx - w / 2, G - 2, 2, 7, '#e8304a'); R(e.fx + w / 2 - 2, G - 2, 2, 7, '#e8304a'); }
+        }
+      }
     }
 
     for (const e of S.ents) {
@@ -510,20 +691,42 @@
         case 'fball': blit('fire' + (Math.floor(t / 4) % 3), e.x, e.y + 6); break;
         case 'thief': {
           if (e.inv > 0 && a) break;
+          // greener as his leven drops, and itching when he stops to catch his breath
+          const set = 'tp' + (e.hp > 700 ? '' : e.hp > 350 ? '1' : '2') + '_';
           let k = 'stand';
-          if (e.st === 'pant') k = 'pant';
+          if (e.st === 'pant') k = 'itch' + (Math.floor(t / 6) % 2);
           else if (!e.g) k = 'scared';
           else if (e.st === 'atk') k = (e.t % 55) > 15 && (e.t % 55) < 35 ? 'throw' : 'stand';
           else if (Math.abs(e.vx) > 0.1) k = 'r' + (Math.floor(t / 5) % 4);
-          blit('t_' + k, e.x, e.y, e.face < 0);
+          blit(set + k, e.x, e.y, e.face < 0);
           if (e.st === 'pant') T('...', e.x, e.y - 44, '#ffffff', 'ps', 1);
           break;
         }
+        case 'giant': {
+          let k = 'w0';
+          if (e.st === 'walk') k = e.mv ? 'w' + (Math.floor(e.walk / 6) % 4) : 'w0';
+          else if (e.st === 'stomp') k = e.t < sim.STOMP_UP ? 'footup' : 'stomp';
+          else if (e.st === 'fist') k = e.t < sim.FIST_UP ? 'fistup' : 'fistdown';
+          else if (e.st === 'slip') k = 'slip';
+          else if (e.st === 'down') k = 'lie';
+          else if (e.st === 'getup') k = 'getup';
+          else if (e.st === 'roar') k = 'roar';
+          if (!(e.st === 'down' && e.inv > 20 && a)) blit('g_' + k, e.x, G, e.face < 0);
+          if (e.st === 'down') {
+            const hx = e.x - e.face * 48;
+            for (let i = 0; i < 3; i++) { const an = t / 9 + i * 2.1; R(hx + Math.cos(an) * 12 - 1, G - 36 + Math.sin(an) * 3, 3, 3, '#f8d040'); }
+            // bites left before he gets up
+            for (let i = 0; i < sim.MAX_BITES; i++) R(hx - 12 + i * 5, G - 46, 3, 3, i < e.bites ? '#3a3040' : '#ffffff');
+          }
+          break;
+        }
+        case 'duck': blit('duck', e.x, e.st === 'ground' ? G : e.y, e.st === 'fly' ? Math.floor(t / 4) % 2 === 0 : e.vx < 0); break;
+        case 'stone': blit('stone', e.x, e.y); break;
       }
     }
     drawPlayers(S, t);
     if (id === 'hall') darkness(S, t);
-    if (id === 'arena') { ctx.fillStyle = 'rgba(255,150,60,' + (Math.min(1, v.sun) * 0.32).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); }
+    if (id === 'arena' || id === 'giant') { ctx.fillStyle = 'rgba(255,150,60,' + (Math.min(1, v.sun) * 0.32).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); }
   }
 
   // ---------------------------------------------------------------- HUD
@@ -542,8 +745,8 @@
     const g = sc.goal(S);
     let label = tx[g.k] + (g.of ? '  ' + g.n + '/' + g.of : '');
     let gy = 5;
-    if (S.scene === 'arena') {
-      const th = S.ents.find(e => e.type === 'thief'), hp = th ? th.hp : 0;
+    if (S.scene === 'arena' || S.scene === 'giant') {
+      const th = S.ents.find(e => e.type === 'thief' || e.type === 'giant'), hp = th ? th.hp : 0;
       bar(60, 6, 360, 6, hp / 1000, '#e8304a');                 // the leven = 1000 bar from 2016
       T(tx.leven + ' ' + hp, 240, 14, '#ffffff', 'ps', 1);
       bar(180, 30, 120, 3, v.sun, '#f8c830');
@@ -556,6 +759,12 @@
     if (S.scene === 'bed') {
       bar(180, 28, 120, 5, v.noise / 100, v.noise > 60 ? '#e8304a' : '#f8c830');
       T(tx.noise, 176, 26, '#ffffff', 'ps', 2);
+    }
+    if (S.scene === 'giant') {
+      const g = S.ents.find(e => e.type === 'giant');
+      if (g && g.st === 'roar' && g.t < 55) T(tx.roar, Math.max(80, Math.min(W - 80, g.x)), G - 134 + (Math.floor(t / 3) % 2), '#ffffff', 'ps', 1, 2);
+      // the Laughing Toilet heckles from the stands (above the giant's head, under the goal)
+      if (v.wsT > 0 && tx[v.ws]) { const s = tx[v.ws], w = measure(s, 'vt'); T(s, Math.min(sim.WC_X, W - 4 - w / 2), 58, '#7ec8f0', 'vt', 1); }
     }
     if (S.msgT > 0 && S.msg) T(tx[S.msg], 240, 62, '#f8d040', 'vt', 1);
     if (S.hint) {
@@ -587,8 +796,9 @@
     if (st.bg === 'house') { for (const s of sim.SC.house.solids) blit(s.k, s.x, s.y); }
     if (st.bg === 'arena_dawn') { ctx.fillStyle = 'rgba(255,150,60,0.3)'; ctx.fillRect(0, 0, W, H); }
     let spx = null;
-    for (const [kind, x, pose, flip] of st.a) {
-      const speaks = (st.who === 'z1' && kind === 'z0') || (st.who === 'z2' && kind === 'z1') || (st.who === 't' && (kind === 'thief' || (kind === 'bed' && pose === 'awake'))) || (st.who === 'wc' && kind === 'wc');
+    for (const [kind, x, pose, flip, look] of st.a) {
+      const speaks = (st.who === 'z1' && kind === 'z0') || (st.who === 'z2' && kind === 'z1') || (st.who === 't' && (kind === 'thief' || (kind === 'bed' && pose === 'awake'))) ||
+        (st.who === 'wc' && (kind === 'wc' || kind === 'wcs')) || (st.who === 'g' && (kind === 'giant' || kind === 'grow'));
       if (kind === 'z0' || kind === 'z1') {
         if (pose === 'rise') {
           const up = Math.max(0, 34 - c.t * 0.6);
@@ -599,13 +809,44 @@
         if (speaks) spx = [x, G - 44];
       } else if (kind === 'thief') {
         const away = pose === 'run' || pose === 'flee';
-        const k = pose === 'run' ? 'r' + (Math.floor(t / 5) % 4) : pose === 'flee' || pose === 'giveup' ? 'scared2' : pose;
+        const k = pose === 'run' ? 'r' + (Math.floor(t / 5) % 4) : pose === 'flee' || pose === 'giveup' ? 'scared2' : pose === 'itch' ? 'itch' + (Math.floor(t / 6) % 2) : pose;
         const dx = away ? Math.min(pose === 'flee' ? 220 : 60, c.t * 1.8) : 0;
-        blit('t_' + k, x + dx, G - (pose === 'flee' ? Math.floor(t / 4) % 2 : 0), flip);
+        const dy = pose === 'flee' ? Math.floor(t / 4) % 2 : pose === 'ouch' ? Math.round(Math.abs(Math.sin(c.t / 7)) * 8) : 0;
+        blit('t' + (look || '') + '_' + k, x + dx, G - dy, flip);
         if (speaks) spx = [x, G - 40];
-      } else if (kind === 'wc') {
+      } else if (kind === 'giant' || kind === 'grow') {
+        // 'grow' flickers between the itching thief and the giant, faster and faster
+        const big = kind === 'giant' || c.t > 100 || Math.floor(c.t / Math.max(2, 12 - c.t / 10)) % 2 === 1;
+        const k = pose === 'walk' ? 'w' + (Math.floor(t / 8) % 4) : pose || 'w0';
+        const head = x + (flip ? 48 : -48);
+        if (!big) blit('tp2_itch' + (Math.floor(t / 6) % 2), x, G, flip);
+        else blit('g_' + k, x, G, flip);
+        if (big && k === 'lie') for (let i = 0; i < 3; i++) { const an = t / 9 + i * 2.1; R(head + Math.cos(an) * 12 - 1, G - 36 + Math.sin(an) * 3, 3, 3, '#f8d040'); }
+        if (big && k === 'dust') {
+          for (let i = 0; i < 10; i++) {
+            const py = G - 6 - ((c.t * 0.4 + i * 11) % 60), px = x - 40 + ((i * 23) % 80) + Math.round(Math.sin((c.t + i * 20) / 15) * 3);
+            R(px, py, 2, 2, i % 3 ? '#aeb08c' : GC.skin);
+          }
+        }
+        if (speaks) spx = k === 'lie' ? [head, G - 44] : [x, G - 128];
+      } else if (kind === 'wcs') {
+        // the Laughing Toilet up in the arena stands
         const j = pose === 'laugh' ? Math.floor(t / 4) % 2 : 0;
-        blit('wc_' + (pose === 'laugh' ? 'open' : pose), x, G - j);
+        blit('wc_' + (pose === 'laugh' ? 'open' : pose), x, sim.WC_Y - j);
+        if (speaks) spx = [x, sim.WC_Y - 58];
+      } else if (kind === 'beam') {
+        // the first sunbeam slants in from the top right and comes down onto x
+        const end = Math.min(G, c.t * 5);
+        for (let y = 0; y < end; y += 2) {
+          const bx = x + (G - y) * 0.6;
+          R(bx - 10, y, 20, 2, 'rgba(255,236,150,0.38)'); R(bx - 4, y, 8, 2, 'rgba(255,250,220,0.5)');
+        }
+      } else if (kind === 'wc') {
+        const laughs = pose === 'laugh' || pose === 'plaster';
+        const j = laughs ? Math.floor(t / 4) % 2 : 0;
+        blit('wc_' + (laughs ? 'open' : pose), x, G - j);
+        // the plaster, framed on the bathroom wall as a souvenir
+        if (pose === 'plaster') { R(x - 54, G - 80, 20, 16, '#d8b040'); R(x - 52, G - 78, 16, 12, '#2a1c10'); blit('plaster', x - 44, G - 72); }
         if (speaks) spx = [x, G - 56];
       } else if (kind === 'bed') {
         blit('bed_' + pose, 392, G);
@@ -620,7 +861,7 @@
     R(8, 8, 464, 1, '#ebe8da'); R(8, 77, 464, 1, '#ebe8da'); R(8, 8, 1, 70, '#ebe8da'); R(471, 8, 1, 70, '#ebe8da');
     const who = tx['who_' + st.who], full = tx[st.k];
     let ty = 12;
-    if (who) { T(who, 18, 13, st.who === 't' ? '#f07a18' : st.who === 'wc' ? '#7ec8f0' : '#63d97d', 'ps'); ty = 22; }
+    if (who) { T(who, 18, 13, st.who === 't' ? '#f07a18' : st.who === 'wc' ? '#7ec8f0' : st.who === 'g' ? GC.lt : '#63d97d', 'ps'); ty = 22; }
     const lines = wrap(full, 'vt', 440);
     let left = Math.floor(c.t / 1.2);
     lines.forEach((ln, i) => {

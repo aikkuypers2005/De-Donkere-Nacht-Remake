@@ -54,7 +54,17 @@
         // test links: ?nocut=1 skips the cutscene, ?cut=name&i=2 shows one cutscene line
         if (q.get('nocut')) { S.cut = null; S.mode = 'play'; }
         if (q.get('end')) { S.cut = null; S.mode = 'end'; S.endT = 0; }
-        if (q.get('cut') && DDN.CUTS[q.get('cut')]) { S.cut = { id: q.get('cut'), i: Number(q.get('i')) || 0, t: 0, after: 'play' }; S.mode = 'cut'; }
+        if (q.get('cut') && DDN.CUTS[q.get('cut')]) {
+          // a scene's outro carries on as in the real game (?scene=arena&cut=turn&i=6 leads into the giant)
+          const sc = sim.SC[S.scene], id = q.get('cut');
+          S.cut = { id, i: Math.max(0, Math.min(DDN.CUTS[id].length - 1, Number(q.get('i')) || 0)), t: 0, after: id === sc.outro ? (sc.next ? 'next' : 'end') : 'play' };
+          S.mode = 'cut';
+        }
+        // ?hp=60 sets the boss's leven, ?sun=0.9 the sunrise, ?stun=1 puts the giant on his back
+        const boss = S.ents.find(e => e.type === 'thief' || e.type === 'giant');
+        if (boss && q.get('hp')) boss.hp = Math.max(1, Math.min(1000, Math.round(Number(q.get('hp'))) || 1000));
+        if (q.get('sun') && typeof S.v.sun === 'number') S.v.sun = Math.max(0, Math.min(0.99, Number(q.get('sun')) || 0));
+        if (q.get('stun') && boss && boss.type === 'giant') { boss.st = 'down'; boss.t = 0; boss.bites = 0; }
       }
     });
   };

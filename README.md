@@ -33,8 +33,17 @@ The folder is a plain static site, so it can also be hosted as-is (for example o
 1. **Het Ontwaken** - bite the graveyard gate open, then find the orange threads in the forest.
 2. **Het Huis** - get the key from the crow, then light the candles in the hallway.
 3. **De Lachende WC** - bite the toilet while its lid is open.
-4. **HELP ZOMBIES** - sneak to the bed while he snores, then keep up in the chase.
-5. **De Arena** - win the canvas back before sunrise.
+4. **HELP ZOMBIES** - sneak to the bed while he snores, then keep up in the chase. On the way out a zombie bites him in the behind.
+5. **De Arena** - win the canvas back before sunrise. Then the bite kicks in: the thief turns into a giant. He cannot be hurt standing up, so kick the Laughing Toilet's rubber ducks under his feet and bite his head while he lies on his back. Losing restarts the giant fight, not the arena.
+
+## Test links
+
+For trying one part of the game directly:
+
+- `?scene=giant&nocut=1` starts the giant fight (`&p=2` for two players).
+- `?scene=arena&cut=turn&i=3` shows one cutscene line. A scene's outro carries on as in the game, so this one leads into the giant fight.
+- `?hp=60` sets the thief's or the giant's leven, `?sun=0.9` the sunrise, `?stun=1` puts the giant on his back.
+- `?end=1` shows the end screen.
 
 ## Code
 

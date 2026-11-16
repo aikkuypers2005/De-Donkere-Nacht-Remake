@@ -48,7 +48,7 @@
       chapter: 'HOOFDSTUK',
       ch1: 'Het Ontwaken', ch2: 'Het Huis', ch3: 'De Lachende WC', ch4: 'HELP ZOMBIES', ch5: 'De Arena',
       next: 'verder',
-      who_n: '', who_z1: 'Schutter', who_z2: 'Schutter', who_t: 'De dief', who_wc: 'De Lachende WC',
+      who_n: '', who_z1: 'Schutter', who_z2: 'Schutter', who_t: 'De dief', who_wc: 'De Lachende WC', who_g: 'De reus',
 
       g_field: 'Bijt het hek van het kerkhof open',
       g_forest: 'Zoek de oranje draadjes',
@@ -59,6 +59,8 @@
       g_bed: 'Sluip naar het bed. Loop alleen als hij snurkt',
       g_chase: 'Blijf de dief bij!',
       g_arena: 'Pak het doek terug voor de zon opkomt',
+      g_giant: 'Trap een badeend onder zijn voet!',
+      g_giant2: 'Bijt zijn hoofd!',
       g_go: 'Loop naar rechts',
       h_move: 'Lopen: A / D, pijltjes, muisknoppen of stick',
       h_jump: 'Springen: W, spatie, pijl omhoog of kruisje',
@@ -67,6 +69,19 @@
       h_flame2: 'Breng het vuur snel naar een kaars',
       h_still: 'STIL STAAN!',
       h_walk: 'Hij snurkt. Lopen maar',
+      h_kick: 'Bijt een badeend om hem weg te trappen',
+      h_wait: 'Wacht op een badeend van de WC',
+      h_stomp: 'Hij stampt! Spring over de schokgolf',
+      h_fist: 'Loop weg uit de schaduw!',
+      h_head: 'Hij ligt op zijn rug! Bijt zijn hoofd',
+      roar: 'GROOAAAR!',
+      w_duck: 'Kwak! Een badeend!',
+      w_slip: 'HAHAHA! Uitgegleden!',
+      w_up: 'Oei! Hij staat weer op!',
+      w_h1: 'Hé reus! Wat een stinkvoeten!',
+      w_h2: 'Groot, groen en sloom! HAHAHA!',
+      w_h3: 'Mijn eendjes zijn sneller!',
+      w_h4: 'Kijk uit, zombies! HAHAHA!',
       m_locked: 'Op slot. De kraai heeft de sleutel.',
       m_key: 'De sleutel!',
       m_caught: 'Hij hoorde iets! Terug naar de deur...',
@@ -99,15 +114,26 @@
       c_b2: 'Sssst. Alleen lopen als hij snurkt.',
       c_b3: 'Hè? Wat... groen... tanden...',
       c_b4: 'HELP! ZOMBIES!',
-      c_b5: 'Hij grist het doek mee en rent de nacht in.',
+      c_b5: 'Hij plakt snel een pleister op zijn bil. Dan grist hij het doek mee en rent de nacht in.',
+      c_b6: 'AU! Mijn bil!',
+      c_b7: 'Oeps. Dat was per ongeluk.',
       c_a1: 'De oude arena. Geen uitgang. En aan de horizon wordt het al licht.',
       c_a2: 'Blijf uit mijn buurt! Ik heb... stenen!',
       c_a3: 'Voor de zon op is.',
-      c_e1: 'Oké! Oké! Hier! Neem dat doek maar! Ik steel nooit meer iets!',
-      c_e2: 'De dief rende weg en keek nooit meer om.',
-      c_e3: 'Net voor zonsopgang hing het doek weer op zijn plek.',
-      c_e4: 'De twee schutters stapten terug in de verf. Slapen. Eindelijk.',
-      c_e5: 'Wie goed kijkt, ziet ze in een donkere nacht nog weleens knipogen.'
+      c_t1: 'Oké, oké! Hier is jullie stomme doek! Ik stop ermee!',
+      c_t2: 'Maar... waarom jeukt mijn bil zo? Het jeukt en jeukt en jeukt...',
+      c_t3: 'Eh... dat komt door die beet. Je wordt helemaal groen.',
+      c_t4: 'Hij krabt en krabt. En hij groeit. En groeit. En GROEIT.',
+      c_t5: 'GROOOAAAR! Nu ben IK de baas! Ik stamp jullie plat!',
+      c_t6: 'HAHAHA! Ik kwam even kijken! Een reus op blote voeten? Ik heb badeendjes. Daar glijdt hij vast over uit!',
+      c_t7: 'En als hij op de grond ligt, bijten we in zijn hoofd. Snel, voor de zon op is!',
+      c_e1: 'BOEM! De reus valt op zijn rug en blijft liggen.',
+      c_e2: 'Daar komt de eerste zonnestraal. Precies op zijn neus.',
+      c_e3: 'En pfff... de reus valt uit elkaar tot een hoopje stof. Alleen de pleister blijft over.',
+      c_e4: 'Pak het doek! Snel, voor de zon ons ook vindt!',
+      c_e5: 'Net op tijd hingen ze het doek terug. Toen stapten ze weer in de verf.',
+      c_e6: 'Slapen. Eindelijk. Wie goed kijkt, ziet ze in een donkere nacht nog weleens knipogen.',
+      c_e7: 'HAHAHA! En die pleister hang ik in mijn badkamer. Als aandenken! HAHAHA!'
     },
 
     en: {
@@ -155,7 +181,7 @@
       chapter: 'CHAPTER',
       ch1: 'The Awakening', ch2: 'The House', ch3: 'The Laughing Toilet', ch4: 'HELP ZOMBIES', ch5: 'The Arena',
       next: 'next',
-      who_n: '', who_z1: 'Guard', who_z2: 'Guard', who_t: 'The thief', who_wc: 'The Laughing Toilet',
+      who_n: '', who_z1: 'Guard', who_z2: 'Guard', who_t: 'The thief', who_wc: 'The Laughing Toilet', who_g: 'The giant',
 
       g_field: 'Bite the graveyard gate open',
       g_forest: 'Find the orange threads',
@@ -166,6 +192,8 @@
       g_bed: 'Sneak to the bed. Only walk while he snores',
       g_chase: 'Keep up with the thief!',
       g_arena: 'Get the canvas back before sunrise',
+      g_giant: 'Kick a rubber duck under his foot!',
+      g_giant2: 'Bite his head!',
       g_go: 'Walk to the right',
       h_move: 'Walk: A / D, arrows, mouse buttons or stick',
       h_jump: 'Jump: W, space, up arrow or cross',
@@ -174,6 +202,19 @@
       h_flame2: 'Carry the fire to a candle, quickly',
       h_still: 'STAND STILL!',
       h_walk: 'He is snoring. Go',
+      h_kick: 'Bite a rubber duck to kick it',
+      h_wait: 'Wait for a rubber duck from the toilet',
+      h_stomp: 'He stomps! Jump over the shock wave',
+      h_fist: 'Get out of the shadow!',
+      h_head: 'He is on his back! Bite his head',
+      roar: 'ROOAAAR!',
+      w_duck: 'Quack! A rubber duck!',
+      w_slip: 'HAHAHA! He slipped!',
+      w_up: 'Uh-oh! He is getting up!',
+      w_h1: 'Hey giant! Smelly feet!',
+      w_h2: 'Big, green and slow! HAHAHA!',
+      w_h3: 'My ducks are faster!',
+      w_h4: 'Look out, zombies! HAHAHA!',
       m_locked: 'Locked. The crow has the key.',
       m_key: 'The key!',
       m_caught: 'He heard something! Back to the door...',
@@ -206,20 +247,32 @@
       c_b2: 'Shhh. Only walk while he snores.',
       c_b3: 'Huh? What... green... teeth...',
       c_b4: 'HELP! ZOMBIES!',
-      c_b5: 'He grabs the canvas and runs out into the night.',
+      c_b5: 'He quickly sticks a plaster on his behind. Then he grabs the canvas and runs out into the night.',
+      c_b6: 'OW! My behind!',
+      c_b7: 'Oops. That was an accident.',
       c_a1: 'The old arena. No way out. And on the horizon it is already getting light.',
       c_a2: 'Stay away from me! I have... rocks!',
       c_a3: 'Before the sun is up.',
-      c_e1: 'Okay! Okay! Here! Take the canvas! I will never steal again!',
-      c_e2: 'The thief ran away and never looked back.',
-      c_e3: 'Just before sunrise the canvas hung in its place again.',
-      c_e4: 'The two guards stepped back into the paint. Sleep. At last.',
-      c_e5: 'Look closely on a dark night and you may still catch them winking.'
+      c_t1: 'Okay, okay! Here is your stupid canvas! I give up!',
+      c_t2: 'But... why is my behind so itchy? It itches and itches and itches...',
+      c_t3: 'Er... that is from the bite. You are turning all green.',
+      c_t4: 'He scratches and scratches. And he grows. And grows. And GROWS.',
+      c_t5: 'GROOOAAAR! Now I am the boss! I will stomp you flat!',
+      c_t6: 'HAHAHA! I came to watch! A giant in bare feet? I have rubber ducks. He is sure to slip on those!',
+      c_t7: 'And when he is on the ground, we bite his head. Quick, before the sun is up!',
+      c_e1: 'BOOM! The giant falls on his back and stays down.',
+      c_e2: 'Here comes the first sunbeam. Right on his nose.',
+      c_e3: 'And poof... the giant crumbles into a little pile of dust. Only the plaster is left.',
+      c_e4: 'Grab the canvas! Quick, before the sun finds us too!',
+      c_e5: 'Just in time they hung the canvas back. Then they stepped into the paint again.',
+      c_e6: 'Sleep. At last. Look closely on a dark night and you may still catch them winking.',
+      c_e7: 'HAHAHA! And I am hanging that plaster in my bathroom. As a souvenir! HAHAHA!'
     }
   };
 
-  // Cutscene scripts. bg = background, a = actors [kind, x, pose, flip],
+  // Cutscene scripts. bg = background, a = actors [kind, x, pose, flip, look],
   // who = speaker, k = text key, card = chapter number, fx = sound, shake = screen shake.
+  // look is the thief's sprite set: 'p' has the plaster, 'p1' and 'p2' are greener as well.
   DDN.CUTS = {
     intro: [
       { bg: 'museum', a: [], who: 'n', k: 'c_i1' },
@@ -259,20 +312,34 @@
     bedout: [
       { bg: 'bed', a: [['z0', 318, 'idle', 0], ['z1', 296, 'idle', 0], ['bed', 380, 'awake', 0]], who: 't', k: 'c_b3' },
       { bg: 'bed', a: [['z0', 318, 'bite', 0], ['z1', 296, 'idle', 0], ['bed', 380, 'empty', 0], ['thief', 420, 'scared', 0]], who: 't', k: 'c_b4', shake: 1, fx: 'alarm' },
-      { bg: 'bed', a: [['z0', 318, 'idle', 0], ['z1', 296, 'idle', 0], ['bed', 380, 'empty', 0], ['thief', 460, 'run', 0]], who: 'n', k: 'c_b5' }
+      { bg: 'bed', a: [['bed', 380, 'empty', 0], ['z0', 386, 'bite', 0], ['z1', 296, 'idle', 0], ['thief', 404, 'ouch', 0]], who: 't', k: 'c_b6', shake: 1, fx: 'bite' },
+      { bg: 'bed', a: [['bed', 380, 'empty', 0], ['z0', 386, 'idle', 0], ['z1', 296, 'idle', 0], ['thief', 440, 'ouch', 0]], who: 'z1', k: 'c_b7' },
+      { bg: 'bed', a: [['bed', 380, 'empty', 0], ['z0', 386, 'idle', 0], ['z1', 296, 'idle', 0], ['thief', 440, 'run', 0, 'p']], who: 'n', k: 'c_b5' }
     ],
     arena: [
       { card: 5 },
-      { bg: 'arena', a: [['z0', 50, 'idle', 0], ['z1', 74, 'idle', 0], ['thief', 400, 'pant', 1]], who: 'n', k: 'c_a1' },
-      { bg: 'arena', a: [['z0', 50, 'idle', 0], ['z1', 74, 'idle', 0], ['thief', 400, 'throw', 1]], who: 't', k: 'c_a2' },
-      { bg: 'arena', a: [['z0', 50, 'bite', 0], ['z1', 74, 'idle', 0], ['thief', 400, 'scared', 1]], who: 'z1', k: 'c_a3' }
+      { bg: 'arena', a: [['z0', 50, 'idle', 0], ['z1', 74, 'idle', 0], ['thief', 400, 'pant', 1, 'p']], who: 'n', k: 'c_a1' },
+      { bg: 'arena', a: [['z0', 50, 'idle', 0], ['z1', 74, 'idle', 0], ['thief', 400, 'throw', 1, 'p']], who: 't', k: 'c_a2' },
+      { bg: 'arena', a: [['z0', 50, 'bite', 0], ['z1', 74, 'idle', 0], ['thief', 400, 'scared', 1, 'p']], who: 'z1', k: 'c_a3' }
+    ],
+    // the thief turns into a giant: 'grow' flickers between the two
+    turn: [
+      { bg: 'arena', a: [['z0', 150, 'idle', 0], ['z1', 126, 'idle', 0], ['thief', 320, 'throw', 1, 'p2'], ['roll', 280, '', 0]], who: 't', k: 'c_t1', fx: 'throw' },
+      { bg: 'arena', a: [['z0', 150, 'idle', 0], ['z1', 126, 'idle', 0], ['thief', 320, 'itch', 1, 'p2'], ['roll', 280, '', 0]], who: 't', k: 'c_t2' },
+      { bg: 'arena', a: [['z0', 150, 'idle', 0], ['z1', 126, 'idle', 0], ['thief', 320, 'itch', 1, 'p2'], ['roll', 280, '', 0]], who: 'z1', k: 'c_t3' },
+      { bg: 'arena', a: [['z0', 150, 'idle', 0], ['z1', 126, 'idle', 0], ['grow', 320, '', 1], ['roll', 280, '', 0]], who: 'n', k: 'c_t4', shake: 1, fx: 'grow' },
+      { bg: 'arena', a: [['z0', 150, 'idle', 0], ['z1', 126, 'idle', 0], ['giant', 320, 'roar', 1], ['roll', 280, '', 0]], who: 'g', k: 'c_t5', shake: 1, fx: 'roar' },
+      { bg: 'arena', a: [['z0', 150, 'idle', 0], ['z1', 126, 'idle', 0], ['giant', 320, 'w0', 1], ['wcs', 446, 'laugh', 0], ['roll', 280, '', 0]], who: 'wc', k: 'c_t6', fx: 'laugh' },
+      { bg: 'arena', a: [['z0', 150, 'bite', 0], ['z1', 126, 'idle', 0], ['giant', 320, 'w0', 1], ['wcs', 446, 'open', 0], ['roll', 280, '', 0]], who: 'z2', k: 'c_t7' }
     ],
     ending: [
-      { bg: 'arena_dawn', a: [['z0', 200, 'idle', 0], ['z1', 176, 'idle', 0], ['thief', 250, 'giveup', 1], ['roll', 228, '', 0]], who: 't', k: 'c_e1' },
-      { bg: 'arena_dawn', a: [['z0', 200, 'idle', 0], ['z1', 176, 'idle', 0], ['thief', 300, 'flee', 0], ['roll', 228, '', 0]], who: 'n', k: 'c_e2' },
-      { bg: 'museum', a: [], who: 'n', k: 'c_e3', fx: 'win' },
-      { bg: 'museum', a: [['z0', 200, 'idle', 0], ['z1', 280, 'idle', 1]], who: 'n', k: 'c_e4' },
-      { bg: 'museum', a: [], who: 'n', k: 'c_e5' }
+      { bg: 'arena_dawn', a: [['z0', 90, 'idle', 0], ['z1', 66, 'idle', 0], ['giant', 250, 'lie', 0]], who: 'n', k: 'c_e1', shake: 1, fx: 'thud' },
+      { bg: 'arena_dawn', a: [['z0', 90, 'idle', 0], ['z1', 66, 'idle', 0], ['giant', 250, 'lie', 0], ['beam', 202, '', 0]], who: 'n', k: 'c_e2', fx: 'shine' },
+      { bg: 'arena_dawn', a: [['z0', 90, 'idle', 0], ['z1', 66, 'idle', 0], ['giant', 250, 'dust', 0], ['beam', 250, '', 0]], who: 'n', k: 'c_e3', fx: 'crumble' },
+      { bg: 'arena_dawn', a: [['z0', 150, 'bite', 0], ['z1', 126, 'idle', 0], ['roll', 172, '', 0], ['giant', 250, 'dust', 0]], who: 'z2', k: 'c_e4' },
+      { bg: 'museum2', a: [['z0', 200, 'idle', 0], ['z1', 280, 'idle', 1], ['roll', 240, '', 0]], who: 'n', k: 'c_e5', fx: 'win' },
+      { bg: 'museum', a: [], who: 'n', k: 'c_e6' },
+      { bg: 'bath', a: [['wc', 380, 'plaster', 0]], who: 'wc', k: 'c_e7', fx: 'laugh' }
     ]
   };
 
