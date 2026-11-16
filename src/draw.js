@@ -366,11 +366,21 @@
       P(-4, -8, 8, 8, '#9aa0ac'); P(-4, -8, 2, 8, '#6a707c'); P(-4, -9, 8, 2, '#f8d040'); P(1, -7, 1, 3, '#f8d040'); P(-1, -5, 4, 3, '#f8d040');
       P(2, -13, 1, 5, '#8a5a2c'); P(1, -10, 3, 2, '#f8d040');
     });
-    // hangs from its feet: drawn with the feet at x, y
-    make('pu_chick', 10, 14, 5, 0, P => {
-      P(-1, 0, 1, 3, '#e8a020'); P(1, 0, 1, 3, '#e8a020');
-      P(-3, 3, 6, 6, '#f4f0e8'); P(-3, 3, 2, 6, '#d0ccc0'); P(1, 4, 2, 4, '#d8d4cc');
-      P(-1, 9, 2, 2, '#f4f0e8'); P(-1, 11, 2, 2, '#e03030'); P(1, 10, 1, 1, '#e8a020'); P(-1, 10, 1, 1, '#111');
+    // A plump white hen, side view, drawn from her feet: the pickup, and the one carried in the hand.
+    make('pu_chick', 17, 15, 9, 14, P => {
+      const Wh = '#f8f6f0', Y = '#f0a020', Rd = '#e02828';
+      P(-5, -9, 9, 6, Wh); P(-6, -8, 11, 4, Wh); P(-4, -3, 7, 1, Wh);
+      P(-7, -11, 3, 4, Wh); P(-8, -12, 2, 2, Wh);
+      P(2, -12, 4, 4, Wh); P(2, -13, 3, 1, Rd); P(3, -14, 1, 1, Rd);
+      P(6, -11, 2, 1, Y); P(4, -11, 1, 1, '#111'); P(5, -9, 1, 2, Rd);
+      P(-3, -8, 5, 3, '#d8d4cc'); P(-2, -8, 4, 1, '#ebe7df');
+      P(-2, -2, 1, 2, Y); P(1, -2, 1, 2, Y); P(-3, 0, 2, 1, Y); P(1, 0, 2, 1, Y);
+    });
+    // the same hen, standing, as a small HUD icon (drawn from its feet)
+    make('chick_i', 11, 10, 5, 10, P => {
+      const Wh = '#f8f6f0';
+      P(-4, -6, 7, 5, Wh); P(-5, -7, 2, 3, Wh); P(1, -9, 3, 4, Wh); P(4, -7, 2, 1, '#f0a020');
+      P(2, -10, 2, 1, '#e02828'); P(3, -8, 1, 1, '#111'); P(-2, -5, 3, 2, '#d0cbc0'); P(-1, -1, 1, 1, '#f0a020'); P(1, -1, 1, 1, '#f0a020');
     });
     // the garden gnome in front of the house, standing and running away
     const gnome = (key, run, f) => make(key, 14, 21, 7, 20, P => {
@@ -395,15 +405,19 @@
       P(-1, -2, 2, 2, '#c8b090');
     });
     holder('roll1', true); holder('roll0', false);
-    // the ghost audience in the arena stands: calm, cheering, booing
-    const ghost = (key, mood) => make(key, 10, 12, 5, 11, P => {
-      const c = '#e4ecff', k = '#3a3a5a';
-      P(-3, -10, 6, 9, c); P(-4, -8, 8, 6, c); P(-4, -2, 2, 2, c); P(-1, -2, 2, 2, c); P(2, -2, 2, 2, c);
-      if (mood === 1) { P(-5, -11, 1, 4, c); P(4, -11, 1, 4, c); P(-2, -8, 1, 1, k); P(1, -8, 1, 1, k); P(-1, -5, 2, 2, k); }
-      else if (mood === 2) { P(-2, -7, 1, 1, k); P(1, -7, 1, 1, k); P(-2, -9, 1, 1, k); P(2, -9, 1, 1, k); P(-2, -4, 4, 1, k); P(-2, -3, 1, 1, k); P(1, -3, 1, 1, k); }
-      else { P(-2, -8, 1, 2, k); P(1, -8, 1, 2, k); P(-1, -5, 2, 1, k); }
+    // the ghost audience in the arena stands: three shapes (normal, small, tall), calm, cheering or booing
+    const ghost = (key, shape, mood) => make(key, 12, 17, 6, 16, P => {
+      const c = shape === 1 ? '#e4f4ec' : shape === 2 ? '#ece4ff' : '#e4ecff', k = '#3a3a5a';
+      const top = shape === 2 ? -14 : shape === 1 ? -8 : -10, hw = shape === 1 ? 3 : 4;
+      P(-hw + 1, top, hw * 2 - 2, -top - 1, c); P(-hw, top + 2, hw * 2, -top - 3, c);
+      if (shape === 2) P(-1, top - 1, 2, 1, c);
+      for (let x = -hw; x < hw; x += 3) P(x, -2, 2, 2, c);
+      const ey = top + (shape === 2 ? 4 : 2);
+      if (mood === 1) { P(-hw - 1, top - 1, 1, 4, c); P(hw, top - 1, 1, 4, c); P(-2, ey, 1, 1, k); P(1, ey, 1, 1, k); P(-1, ey + 2, 2, 2, k); }
+      else if (mood === 2) { P(-2, ey, 1, 1, k); P(2, ey, 1, 1, k); P(-2, ey + 1, 1, 1, k); P(1, ey + 1, 1, 1, k); P(-2, ey + 3, 4, 1, k); P(-2, ey + 4, 1, 1, k); P(1, ey + 4, 1, 1, k); }
+      else { P(-2, ey, 1, 2, k); P(1, ey, 1, 2, k); P(-1, ey + 3, 2, 1, k); }
     }, false);
-    ghost('ghost0', 0); ghost('ghost1', 1); ghost('ghost2', 2);
+    for (let s = 0; s < 3; s++) for (let m = 0; m < 3; m++) ghost('ghost' + s + m, s, m);
 
     const bat = (key, up) => make(key, 20, 12, 10, 7, P => {
       P(-2, -3, 5, 6, '#4a3568'); P(-2, -5, 1, 2, '#4a3568'); P(2, -5, 1, 2, '#4a3568');
@@ -700,24 +714,37 @@
       // the chicken hangs from his outstretched hand
       if (p.chick > 0 && p.down === 0 && (p.chick > 120 || Math.floor(t / 6) % 2) && !(gt >= 0 && gt < 100)) {
         const al = pose === 'bite' ? 12 : pose === 'jump' ? 9 : 8, b = pose === 'idle1' || pose === 'w1' || pose === 'w3' ? 1 : 0;
-        blit('pu_chick', p.x + p.face * (4 + al), p.y - 15 + b, p.face < 0);
+        blit('pu_chick', p.x + p.face * (5 + al), p.y - 3 + b, p.face < 0);       // carried by her back
       }
       if (p.carry > 0 && (p.carry > 120 || Math.floor(t / 4) % 2)) flame(p.x + p.face * 12, p.y - 17, t, false);
       if (p.down > 0 && S.two) T(String(Math.max(0, Math.ceil((240 - p.down) / 60))), p.x, p.y - 26, '#ffffff', 'ps', 1);
     }
   }
   // The ghost audience in the arena stands. It cheers, boos and does a wave, all read from S.v.
+  // The crowd is placed once from a fixed seed: uneven seats, a few empty ones, three kinds of ghost.
+  let CROWD = null;
+  function crowdSeats() {
+    if (CROWD) return CROWD;
+    CROWD = [];
+    let seed = 7;
+    const r = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    [170, 151, 133].forEach((y, row) => {
+      for (let x = 10 + row * 7 + Math.floor(r() * 8); x < W - 6; x += 15 + Math.floor(r() * 20)) {
+        if (r() < 0.18) continue;
+        const s = r() < 0.22 ? 1 : r() < 0.28 ? 2 : 0;
+        CROWD.push({ x, y: y + Math.floor(r() * 3), s, ph: Math.floor(r() * 120), f: r() < 0.5 });
+      }
+    });
+    return CROWD;
+  }
   function ghosts(S, tx, t) {
     const v = S.v, wavePos = v.wave > 0 ? (150 - v.wave) / 150 * (W + 60) - 30 : -999;
-    let i = 0;
-    [170, 151, 133].forEach((y, r) => {
-      for (let x = 14 + r * 11; x < W - 8; x += 26, i++) {
-        if (S.scene === 'giant' && x > sim.WC_X - 24) continue;            // the toilet's seat
-        const inWave = Math.abs(x - wavePos) < 24;
-        const mood = v.boo > 0 ? 2 : v.cheer > 0 || inWave ? 1 : 0;
-        const up = inWave ? 5 : v.cheer > 0 ? ((Math.floor(t / 5) + i) % 2) * 2 : 0;
-        blit('ghost' + mood, x, y - up, i % 2 === 1, 0.55);
-      }
+    crowdSeats().forEach((c, i) => {
+      if (S.scene === 'giant' && c.x > sim.WC_X - 24) return;              // the toilet's seat
+      const inWave = Math.abs(c.x - wavePos) < 24;
+      const mood = v.boo > 0 ? 2 : v.cheer > 0 || inWave ? 1 : 0;
+      const up = inWave ? 5 : v.cheer > 0 ? ((Math.floor(t / 5) + i) % 2) * 2 : (Math.floor((t + c.ph * 7) / 45) % 3 === 0 ? 1 : 0);
+      blit('ghost' + c.s + mood, c.x, c.y - up, c.f, 0.55);
     });
     if (v.cheer > 0) { T(tx.cheer, 110, 104, '#e4ecff', 'ps', 1); T(tx.cheer, 330, 112, '#e4ecff', 'ps', 1); }
     else if (v.boo > 0) { T(tx.boo, 130, 106, '#e4ecff', 'ps', 1); T(tx.boo, 310, 110, '#e4ecff', 'ps', 1); }
@@ -792,7 +819,7 @@
         case 'key': blit('key', e.x, e.y + Math.round(Math.sin(t / 8))); break;
         case 'pow': {
           const bob = e.air || e.vx ? 0 : Math.round(Math.sin(t / 10 + e.x) * 1.5) - 1;
-          if (e.kind === 'chick') blit('pu_chick', e.x, e.y - 16 + bob); else blit('pu_' + e.kind, e.x, e.y + bob);
+          if (e.kind === 'chick') blit('pu_chick', e.x, e.y + bob); else blit('pu_' + e.kind, e.x, e.y + bob);
           if (Math.floor((t + e.x) / 16) % 3 === 0) R(e.x + 4, e.y - 15 + bob, 1, 1, '#ffffff');
           break;
         }
@@ -862,6 +889,13 @@
   function bar(x, y, w, h, f, col, back) {
     R(x - 1, y - 1, w + 2, h + 2, '#0c0a16'); R(x, y, w, h, back || '#2a2438'); R(x, y, Math.round(w * Math.max(0, Math.min(1, f))), h, col);
   }
+  // HUD text on a dark see-through strip, so it reads on any background (like the white bedroom wall).
+  function label(s, x, y, col, font, align) {
+    if (!s) return;
+    const w = textImg(s, font, col).width, lx = align === 1 ? x - w / 2 : align === 2 ? x - w : x;
+    if (font === 'vt') R(lx - 4, y + 2, w + 7, 17, 'rgba(8,8,20,0.55)'); else R(lx - 3, y - 1, w + 5, 11, 'rgba(8,8,20,0.55)');
+    T(s, x, y, col, font, align);
+  }
   function drawHud(S, tx, t) {
     const sc = sim.SC[S.scene], v = S.v;
     let y = 6;
@@ -875,7 +909,7 @@
       for (const [kind, left, max, col] of [['gold', p.gold, sim.GOLD_T, '#f8d040'], ['chick', p.chick, sim.CHICK_T, '#f4f0e8']]) {
         if (left <= 0) continue;
         if (left > 120 || Math.floor(t / 6) % 2) {
-          if (kind === 'chick') blit('pu_chick', px + 3, y - 1); else blit('pu_gold', px + 3, y + 11);
+          if (kind === 'chick') blit('chick_i', px + 4, y + 10); else blit('pu_gold', px + 3, y + 11);
           bar(px + 10, y + 4, bw, 3, left / max, col);
         }
         px += step;
@@ -883,22 +917,22 @@
       y += 13;
     }
     const g = sc.goal(S);
-    let label = tx[g.k] + (g.of ? '  ' + g.n + '/' + g.of : '');
+    const goalText = tx[g.k] + (g.of ? '  ' + g.n + '/' + g.of : '');
     let gy = 5;
     if (S.scene === 'arena' || S.scene === 'giant') {
       const th = S.ents.find(e => e.type === 'thief' || e.type === 'giant'), hp = th ? th.hp : 0;
       bar(60, 6, 360, 6, hp / 1000, '#e8304a');                 // the leven = 1000 bar from 2016
-      T(tx.leven + ' ' + hp, 240, 14, '#ffffff', 'ps', 1);
+      label(tx.leven + ' ' + hp, 240, 14, '#ffffff', 'ps', 1);
       bar(180, 30, 120, 3, v.sun, '#f8c830');
       blit('sun', 180 + Math.round(120 * Math.min(1, v.sun)), 31);
-      T(tx.sun, 176, 26, '#f8c830', 'ps', 2);
+      label(tx.sun, 176, 26, '#f8c830', 'ps', 2);
       gy = 36;
     }
-    T(label, 240, gy, '#ffffff', 'vt', 1);
-    if (g.bar != null) { bar(170, 28, 140, 4, g.bar, '#f07a18'); T(tx.dist, 316, 25, '#f07a18', 'ps'); }
+    label(goalText, 240, gy, '#ffffff', 'vt', 1);
+    if (g.bar != null) { bar(170, 28, 140, 4, g.bar, '#f07a18'); label(tx.dist, 316, 25, '#f07a18', 'ps'); }
     if (S.scene === 'bed') {
       bar(180, 28, 120, 5, v.noise / 100, v.noise > 60 ? '#e8304a' : '#f8c830');
-      T(tx.noise, 176, 26, '#ffffff', 'ps', 2);
+      label(tx.noise, 176, 26, '#ffffff', 'ps', 2);
     }
     if (S.scene === 'giant') {
       const g = S.ents.find(e => e.type === 'giant');
@@ -907,12 +941,14 @@
       // Positioned by the width of the text image itself, so the whole line stays on screen.
       if (v.wsT > 0 && tx[v.ws]) { const s = tx[v.ws], w = textImg(s, 'vt', '#7ec8f0').width + 1; T(s, Math.min(sim.WC_X + w / 2, W - 4), 58, '#7ec8f0', 'vt', 2); }
     }
-    if (S.msgT > 0 && S.msg) T(tx[S.msg], 240, 62, '#f8d040', 'vt', 1);
-    // what a zombie says: a small speech bubble over his head (at most 150 px wide)
-    if (S.talk && S.mode === 'play' && S.players[S.talk.who] && tx[S.talk.k]) {
+    if (S.msgT > 0 && S.msg) label(tx[S.msg], 240, 62, '#f8d040', 'vt', 1);
+    // what a zombie says: a small speech bubble over his head (at most 150 px wide). Its border stays 3 px
+    // inside the screen, and it is never drawn over the toilet's flush warning (the giant's warnings clear it in sim).
+    const flushing = S.ents.some(e => e.type === 'wc' && e.st === 'flush' && e.t < 60);
+    if (S.talk && S.mode === 'play' && !flushing && S.players[S.talk.who] && tx[S.talk.k]) {
       const p = S.players[S.talk.who], lines = wrap(tx[S.talk.k], 'vt', 138);
       const w = Math.min(150, Math.max(...lines.map(l => measure(l, 'vt'))) + 10), h = lines.length * 13 + 6;
-      const bx = Math.round(Math.max(3, Math.min(W - 3 - w, p.x - w / 2))), by = Math.round(Math.max(40, p.y - 40 - h));
+      const bx = Math.round(Math.max(4, Math.min(W - 4 - w, p.x - w / 2))), by = Math.round(Math.max(40, p.y - 40 - h));
       R(bx - 1, by - 1, w + 2, h + 2, '#0c0a16'); R(bx, by, w, h, '#f4f4ec');
       const tx0 = Math.round(Math.max(bx + 3, Math.min(bx + w - 6, p.x - 1)));
       R(tx0 - 1, by + h + 1, 5, 1, '#0c0a16'); R(tx0, by + h, 3, 1, '#f4f4ec'); R(tx0, by + h + 1, 3, 1, '#f4f4ec'); R(tx0 + 1, by + h + 2, 1, 2, '#0c0a16');
