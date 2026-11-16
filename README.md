@@ -6,6 +6,9 @@ Two guards of the Night Watch rise as zombies on the darkest night of the year t
 
 ## Play
 
+### Download for Windows
+**[Download the Windows installer (`DeDonkereNachtRemake-Setup-1.0.0.exe`)](https://github.com/aikkuypers2005/De-Donkere-Nacht-Remake/releases/latest)** — installs the standalone desktop game into your Start Menu and Desktop (no Java or Processing required).
+
 ### Online (GitHub Pages)
 you can play directly at:
 `https://aikkuypers2005.github.io/De-Donkere-Nacht-Remake/`

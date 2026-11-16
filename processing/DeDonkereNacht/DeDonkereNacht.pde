@@ -121,6 +121,8 @@ void setup() {
   }
   surface.setTitle("De Donkere Nacht");
   surface.setResizable(true);
+  PImage iconImg = loadImage("icon.png");
+  if (iconImg != null) surface.setIcon(iconImg);
   frameRate(60);
   loadSettings();
   initDraw();
