@@ -17,6 +17,12 @@ node serve.js
 
 Then open http://localhost:8123. Opening `index.html` directly from disk does not work, because browsers block the images that way.
 
+### Desktop version (Processing)
+A full standalone Processing 4 (Java mode) port lives in `processing/DeDonkereNacht/` (solo and 2-player local co-op, with keyboard, mouse, and controller support):
+
+1. Open `processing/DeDonkereNacht/DeDonkereNacht.pde` in the [Processing 4 IDE](https://processing.org) and click **Run**.
+2. To build a standalone Windows application, choose **File > Export Application...** in the Processing IDE (select Windows and *Embed Java* if desired).
+
 ## Controls
 
 | Action | Keyboard 1 | Keyboard 2 | Mouse (2016 style) | Controller |

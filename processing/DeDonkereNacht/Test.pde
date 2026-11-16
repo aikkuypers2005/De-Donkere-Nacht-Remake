@@ -919,6 +919,8 @@ void runSmokeTests() {
       "field " + fieldF + " frames (was 462), hall " + hallF + " (was 389), full game " + Math.round(total / 60.0) + " s (stage 2 runs: 159-167 s)");
   }
 
+  runSysChecks();
+
   println(testFailed > 0 ? "\n" + testFailed + " check(s) failed" : "\nAll checks passed");
   if (testFailed > 0) {
     System.exit(1);
@@ -1108,4 +1110,105 @@ void runShotsMode(String outFolder) {
 
   println("Saved 22 screenshots to " + dir.getAbsolutePath());
   exit();
+}
+
+Object makeTestPadState(boolean connected, float lx, float ly, boolean dU, boolean dD, boolean dL, boolean dR, boolean a, boolean b, boolean x, boolean start) throws Exception {
+  Constructor<?> ctor = padStateClass.getDeclaredConstructor();
+  ctor.setAccessible(true);
+  Object cs = ctor.newInstance();
+  Field[] fs = { fConnected, fLeftX, fLeftY, fDpadUp, fDpadDown, fDpadLeft, fDpadRight, fA, fB, fX, fStart };
+  for (Field f : fs) f.setAccessible(true);
+  fConnected.setBoolean(cs, connected);
+  fLeftX.setFloat(cs, lx);
+  fLeftY.setFloat(cs, ly);
+  fDpadUp.setBoolean(cs, dU);
+  fDpadDown.setBoolean(cs, dD);
+  fDpadLeft.setBoolean(cs, dL);
+  fDpadRight.setBoolean(cs, dR);
+  fA.setBoolean(cs, a);
+  fB.setBoolean(cs, b);
+  fX.setBoolean(cs, x);
+  fStart.setBoolean(cs, start);
+  return cs;
+}
+
+void runSysChecks() {
+  // 21. Jamepad SDL2 native library load & live poll
+  initControllers();
+  refreshPads();
+  check("jamepad native SDL2 library loaded", padLibraryLoaded && padManager != null, "loaded=" + padLibraryLoaded + ", connected=" + padCount());
+
+  // 22. Controller mappings (stick/d-pad walk, Cross jump/ok, Square bite, Circle back, Options pause)
+  try {
+    Object walkL = makeTestPadState(true, -0.8f, 0f, false, false, false, false, false, false, false, false);
+    Object dpadRJumpBite = makeTestPadState(true, 0f, 0f, false, false, false, true, true, false, true, false);
+    injectedPadStates = new Object[] { walkL, dpadRJumpBite };
+    int cnt = padCount();
+    InputState p0 = pollDevice("pad0");
+    InputState p1 = pollDevice("pad1");
+    check("controller gameplay mapping (stick/d-pad walk, Cross jump, Square bite)",
+      cnt == 2 && p0.mx == -1 && !p0.jump && !p0.act && p1.mx == 1 && p1.jump && p1.act,
+      "padCount=" + cnt + ", pad0 mx=" + p0.mx + ", pad1 mx=" + p1.mx + " jump=" + p1.jump + " act=" + p1.act);
+
+    prevMenu.clear();
+    injectedPadStates = new Object[] { makeTestPadState(true, 0f, 0.85f, false, false, false, false, true, false, false, false), null };
+    MenuInput m1 = inputTick();
+    injectedPadStates = new Object[] { makeTestPadState(true, 0f, 0f, false, true, false, false, false, true, false, true), null };
+    MenuInput m2 = inputTick();
+    injectedPadStates = null;
+    check("controller menu mapping (stick/d-pad up/down, Cross ok, Circle back, Options pause)",
+      m1.up && m1.ok && !m1.back && !m1.pause && m2.down && m2.back && m2.pause,
+      "m1(up=" + m1.up + ",ok=" + m1.ok + ") m2(down=" + m2.down + ",back=" + m2.back + ",pause=" + m2.pause + ")");
+  } catch (Exception e) {
+    check("controller mappings", false, e.toString());
+  }
+
+  // 23. Synthesized SFX & downsampled music WAV
+  buildAllSfx();
+  File wav = dataFile("night-of-chaos.wav");
+  boolean wavOk = false;
+  String wavInfo = "";
+  try {
+    AudioInputStream ais = AudioSystem.getAudioInputStream(wav);
+    AudioFormat fmt = ais.getFormat();
+    wavOk = (int) fmt.getSampleRate() == 22050 && fmt.getChannels() == 1 && fmt.getSampleSizeInBits() == 16;
+    wavInfo = (int) fmt.getSampleRate() + " Hz, " + fmt.getChannels() + " ch, " + fmt.getSampleSizeInBits() + "-bit, " + (wav.length() / 1024) + " KB";
+    ais.close();
+  } catch (Exception e) {
+    wavInfo = e.toString();
+  }
+  check("audio: 41 synthesized SFX and 22050 Hz mono 16-bit music WAV", sfxBuffers.size() == 41 && wavOk,
+    sfxBuffers.size() + " SFX, music: " + wavInfo);
+
+  // 24. Saved settings & progress round-trip
+  File saveFile = new File(sketchPath("save.json"));
+  boolean hadSave = saveFile.exists();
+  byte[] oldBytes = null;
+  try {
+    if (hadSave) oldBytes = java.nio.file.Files.readAllBytes(saveFile.toPath());
+    saveEnabled = true;
+    saveLang = "en";
+    saveCh = 4;
+    saveMusic = false;
+    saveDev[0] = "mouse";
+    saveDev[1] = "pad0";
+    storeSettings();
+    saveLang = "nl";
+    saveCh = 1;
+    saveMusic = true;
+    saveDev[0] = "kb1";
+    saveDev[1] = "kb2";
+    loadSettings();
+    boolean ok = "en".equals(saveLang) && saveCh == 4 && !saveMusic && "mouse".equals(saveDev[0]) && "pad0".equals(saveDev[1]);
+    check("saved settings and progress JSON round-trip", ok,
+      "lang=" + saveLang + ", ch=" + saveCh + ", music=" + saveMusic + ", dev=" + saveDev[0] + "/" + saveDev[1]);
+  } catch (Exception e) {
+    check("saved settings and progress JSON round-trip", false, e.toString());
+  } finally {
+    saveEnabled = false;
+    try {
+      if (hadSave && oldBytes != null) java.nio.file.Files.write(saveFile.toPath(), oldBytes);
+      else if (saveFile.exists()) saveFile.delete();
+    } catch (Exception e) {}
+  }
 }

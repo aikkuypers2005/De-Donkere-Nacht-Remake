@@ -1,15 +1,16 @@
 // De Donkere Nacht Remake - Processing 4 (Java mode) port
-// Main sketch tab: setup, game loop, menus, window scaling, and CLI modes.
+// Main sketch tab: setup, game loop, menus, window scaling, saved settings, and CLI modes.
 
 final int SIM_W = 480, SIM_H = 270, SIM_G = 216;
 final double STEP_MS = 1000.0d / 60.0d;
 final String[] MENU = { "m_solo", "m_local", "m_chapter", "m_lang", "m_music", "m_controls" };
 
-// Saved settings & progress
+// Saved settings & progress (stored in save.json next to the sketch)
 String saveLang = "nl";
 int saveCh = 1;
 String[] saveDev = { "kb1", "kb2" };
 boolean saveMusic = true;
+boolean saveEnabled = true;
 
 // App state
 int appTick = 0;
@@ -26,16 +27,59 @@ HashMap<String, String> curTx() {
   return m != null ? m : TEXT.get("nl");
 }
 
+boolean isValidDev(String d) {
+  if (d == null) return false;
+  for (String v : DEVICES) if (v.equals(d)) return true;
+  return false;
+}
+
+void loadSettings() {
+  try {
+    File f = new File(sketchPath("save.json"));
+    if (!f.exists()) return;
+    JSONObject j = loadJSONObject(f.getAbsolutePath());
+    if (j == null) return;
+    if (!j.isNull("lang")) {
+      saveLang = "en".equals(j.getString("lang")) ? "en" : "nl";
+    }
+    if (!j.isNull("ch")) {
+      saveCh = Math.max(1, Math.min(CHAPTERS.length, j.getInt("ch")));
+      chSel = saveCh;
+    }
+    if (!j.isNull("music")) {
+      saveMusic = j.getBoolean("music");
+    }
+    if (!j.isNull("dev")) {
+      JSONArray arr = j.getJSONArray("dev");
+      if (arr != null && arr.size() >= 2) {
+        String d0 = arr.getString(0);
+        String d1 = arr.getString(1);
+        if (isValidDev(d0) && isValidDev(d1) && !d0.equals(d1)) {
+          saveDev[0] = d0;
+          saveDev[1] = d1;
+        }
+      }
+    }
+  } catch (Throwable e) {
+    // Ignore corrupt or missing save file
+  }
+}
+
 void storeSettings() {
-  // Implemented with saveJSONObject in Stage C
-}
-
-void playSfx(String name) {
-  // Implemented in Audio.pde in Stage C
-}
-
-void setMusicOn(boolean on) {
-  // Implemented in Audio.pde in Stage C
+  if (!saveEnabled) return;
+  try {
+    JSONObject j = new JSONObject();
+    j.setString("lang", saveLang);
+    j.setInt("ch", saveCh);
+    j.setBoolean("music", saveMusic);
+    JSONArray dev = new JSONArray();
+    dev.setString(0, saveDev[0]);
+    dev.setString(1, saveDev[1]);
+    j.setJSONArray("dev", dev);
+    saveJSONObject(j, sketchPath("save.json"));
+  } catch (Throwable e) {
+    // Ignore write failure
+  }
 }
 
 void startGame(String r, int players, String scene) {
@@ -61,11 +105,15 @@ void settings() {
 
 void setup() {
   if (args != null && args.length > 0 && "test".equals(args[0])) {
+    saveEnabled = false;
+    audioEnabled = false;
     surface.setVisible(false);
     runSmokeTests();
     return;
   }
   if (args != null && args.length >= 2 && "shots".equals(args[0])) {
+    saveEnabled = false;
+    audioEnabled = false;
     surface.setVisible(false);
     initDraw();
     runShotsMode(args[1]);
@@ -74,7 +122,10 @@ void setup() {
   surface.setTitle("De Donkere Nacht");
   surface.setResizable(true);
   frameRate(60);
+  loadSettings();
   initDraw();
+  initControllers();
+  initAudio();
   lastFrameMs = millis();
 }
 
