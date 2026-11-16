@@ -925,3 +925,187 @@ void runSmokeTests() {
   }
   exit();
 }
+
+void saveShot(File dir, String name) {
+  syncFramePg();
+  File out = new File(dir, name);
+  framePg.save(out.getAbsolutePath());
+  println("SHOT  " + name);
+}
+
+void runShotsMode(String outFolder) {
+  File dir = new File(outFolder);
+  if (!dir.isAbsolute()) {
+    dir = new File(sketchPath(), outFolder);
+  }
+  dir.mkdirs();
+
+  // 1. Title screen
+  saveLang = "nl";
+  saveCh = 5;
+  chSel = 1;
+  menuSel = 0;
+  appMode = "title";
+  appTick = 40;
+  renderApp();
+  saveShot(dir, "01_title.png");
+
+  // 2. Controls screen
+  appMode = "controls";
+  ctrlSel = 0;
+  appTick = 40;
+  renderApp();
+  saveShot(dir, "02_controls.png");
+
+  // 3-11. Every scene in play mode
+  GameState sField = quiet("field", 1);
+  sField.tick = 45;
+  renderGame(sField, "nl", 45);
+  saveShot(dir, "03_scene_field.png");
+
+  GameState sForest = quiet("forest", 1);
+  runSteps(sForest, 140, new InputState(1, false, false));
+  renderGame(sForest, "nl", 140);
+  saveShot(dir, "04_scene_forest.png");
+
+  GameState sHouse = quiet("house", 1);
+  runSteps(sHouse, 30, new InputState(1, false, false));
+  renderGame(sHouse, "nl", 30);
+  saveShot(dir, "05_scene_house.png");
+
+  GameState sHall = quiet("hall", 1);
+  sHall.players[0].x = 120;
+  sHall.players[0].carry = 400;
+  sHall.v.c.get(1).lit = 1;
+  sHall.v.lit = 1;
+  renderGame(sHall, "nl", 60);
+  saveShot(dir, "06_scene_hall.png");
+
+  GameState sBath = quiet("bath", 1);
+  sBath.v.roll = 1;
+  sBath.v.paper = 120;
+  runSteps(sBath, 85, new InputState(1, false, false));
+  renderGame(sBath, "nl", 85);
+  saveShot(dir, "07_scene_bath.png");
+
+  GameState sBed = quiet("bed", 1);
+  sBed.players[0].x = 120;
+  sBed.v.noise = 35;
+  renderGame(sBed, "nl", 50);
+  saveShot(dir, "08_scene_bed.png");
+
+  GameState sChase = quiet("chase", 1);
+  runSteps(sChase, 130, ZERO_INP);
+  renderGame(sChase, "nl", 130);
+  saveShot(dir, "09_scene_chase.png");
+
+  GameState sArena = quiet("arena", 1);
+  sArena.v.sun = 0.25d;
+  sArena.v.cheer = 30;
+  runSteps(sArena, 40, new InputState(1, false, false));
+  renderGame(sArena, "nl", 40);
+  saveShot(dir, "10_scene_arena.png");
+
+  GameState sGiantUp = quiet("giant", 1);
+  Ent gUp = findEnt(sGiantUp, "giant");
+  gUp.st = "stomp";
+  gUp.t = 20;
+  gUp.x = 320;
+  sGiantUp.v.sun = 0.35d;
+  Ent dk = new Ent("duck");
+  dk.x = 200; dk.y = SIM_G; dk.hasY = true; dk.st = "ground";
+  sGiantUp.ents.add(dk);
+  renderGame(sGiantUp, "nl", 90);
+  saveShot(dir, "11_scene_giant_standing.png");
+
+  // 12. Giant stunned on his back
+  GameState sGiantDown = quiet("giant", 1);
+  Ent gDown = findEnt(sGiantDown, "giant");
+  gDown.st = "down";
+  gDown.t = 40;
+  gDown.x = 260;
+  gDown.face = -1;
+  gDown.hp = 940;
+  gDown.bites = 1;
+  sGiantDown.players[0].x = 290;
+  sGiantDown.players[0].face = 1;
+  sGiantDown.players[0].bite = 15;
+  sGiantDown.v.ws = "w_slip";
+  sGiantDown.v.wsT = 100;
+  fxEnter(sGiantDown);
+  ev(sGiantDown, "bosshit", gDown.x - gDown.face * 48, SIM_G - 30, 60);
+  fxEvents(sGiantDown);
+  fxFreeze = 0;
+  renderGame(sGiantDown, "nl", 120);
+  saveShot(dir, "12_scene_giant_stunned.png");
+
+  // 13-19. Cutscene lines including intro, bedout, turn, and ending
+  GameState sCut = newGame(1, "field");
+  sCut.cut = new CutState("intro", 2, 120, "play");
+  sCut.mode = "cut";
+  renderGame(sCut, "nl", 120);
+  saveShot(dir, "13_cut_intro_museum.png");
+
+  sCut = newGame(1, "bed");
+  sCut.cut = new CutState("bedout", 2, 80, "next");
+  sCut.mode = "cut";
+  renderGame(sCut, "nl", 80);
+  saveShot(dir, "14_cut_bedout_bite.png");
+
+  sCut = newGame(1, "arena");
+  sCut.cut = new CutState("turn", 3, 95, "next");
+  sCut.mode = "cut";
+  renderGame(sCut, "nl", 95);
+  saveShot(dir, "15_cut_turn_grow.png");
+
+  sCut = newGame(1, "arena");
+  sCut.cut = new CutState("turn", 4, 100, "next");
+  sCut.mode = "cut";
+  renderGame(sCut, "nl", 100);
+  saveShot(dir, "16_cut_turn_roar.png");
+
+  sCut = newGame(1, "arena");
+  sCut.cut = new CutState("turn", 5, 140, "next");
+  sCut.mode = "cut";
+  renderGame(sCut, "nl", 140);
+  saveShot(dir, "17_cut_turn_wc.png");
+
+  sCut = newGame(1, "giant");
+  sCut.cut = new CutState("ending", 2, 120, "end");
+  sCut.mode = "cut";
+  renderGame(sCut, "nl", 120);
+  saveShot(dir, "18_cut_ending_beam.png");
+
+  sCut = newGame(1, "giant");
+  sCut.cut = new CutState("ending", 6, 120, "end");
+  sCut.mode = "cut";
+  renderGame(sCut, "nl", 120);
+  saveShot(dir, "19_cut_ending_wc.png");
+
+  // 20. End screen
+  GameState sEnd = newGame(1, "giant");
+  sEnd.cut = null;
+  sEnd.mode = "end";
+  sEnd.endT = 200;
+  renderGame(sEnd, "nl", 200);
+  saveShot(dir, "20_end_screen.png");
+
+  // 21. Power-up active
+  GameState sPow = quiet("forest", 1);
+  sPow.players[0].x = 180;
+  sPow.players[0].gold = GOLD_T - 40;
+  sPow.players[0].chick = CHICK_T - 60;
+  renderGame(sPow, "nl", 60);
+  saveShot(dir, "21_powerup_active.png");
+
+  // 22. Speech bubble and idle head-drops-off gag
+  GameState sTalk = quiet("house", 1);
+  sTalk.players[0].x = 180;
+  sTalk.talk = new Talk(0, "z_key", 120);
+  sTalk.players[0].idle = IDLE_GAG + 40;
+  renderGame(sTalk, "nl", 80);
+  saveShot(dir, "22_speech_bubble.png");
+
+  println("Saved 22 screenshots to " + dir.getAbsolutePath());
+  exit();
+}

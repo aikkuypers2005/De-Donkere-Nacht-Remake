@@ -1,6 +1,5 @@
 // Game rules for De Donkere Nacht 2. No drawing in here, so it runs headless for testing.
 
-final int SIM_W = 480, SIM_H = 270, SIM_G = 216;
 final String[] ORDER = { "field", "forest", "house", "hall", "bath", "bed", "chase", "arena", "giant" };
 final String[] CHAPTERS = { "field", "house", "bath", "bed", "arena" };
 final int DOOR = 364;
