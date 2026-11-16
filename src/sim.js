@@ -1,0 +1,634 @@
+// Game rules for De Donkere Nacht 2. No drawing in here, so it also runs in Node for testing.
+// The whole game state S is plain data, which is what online co-op sends to the guest.
+(function (root) {
+  const DDN = root.DDN = root.DDN || {};
+  const W = 480, H = 270, G = 216;           // screen size and ground height
+  const ORDER = ['field', 'forest', 'house', 'hall', 'bath', 'bed', 'chase', 'arena'];
+  const CHAPTERS = ['field', 'house', 'bath', 'bed', 'arena'];
+  const DOOR = 364;                          // front door of the house
+  const CHASE_LEN = 5400;
+  const SUN_FRAMES = 10800;                  // 3 minutes until sunrise
+  const ZERO = { mx: 0, jump: false, act: false };
+  const rnd = () => Math.random();
+
+  function mkPlayer(i) {
+    return { id: i, x: 30 + i * 22, y: G, vx: 0, vy: 0, face: 1, g: true, hp: 3, inv: 0, bite: 0, bh: false,
+      down: 0, carry: 0, kb: 0, stun: 0, pj: false, pa: false, ai: false, blk: false, jumped: false };
+  }
+  function ev(S, s) { S.evs.push({ n: ++S.evN, s }); if (S.evs.length > 14) S.evs.shift(); }
+  function say(S, k) { S.msg = k; S.msgT = 150; }
+  function humans(S) { return S.players.filter(p => !p.ai); }
+  function alive(S) { return humans(S).filter(p => p.down === 0); }
+  function pbox(p) { return { x: p.x - 5, y: p.y - 26, w: 10, h: 26 }; }
+  function hit(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
+  function biteBox(p) {
+    if (p.down || p.bite < 6 || p.bite > 16) return null;
+    return { x: p.face > 0 ? p.x : p.x - 17, y: p.y - 26, w: 17, h: 24 };
+  }
+  // A bite that has not hit anything yet and overlaps box b.
+  function bites(p, b) {
+    const bb = biteBox(p);
+    if (!bb || p.bh || !hit(bb, b)) return false;
+    p.bh = true;
+    return true;
+  }
+  function nearest(S, x) {
+    let best = null;
+    for (const p of alive(S)) if (!best || Math.abs(p.x - x) < Math.abs(best.x - x)) best = p;
+    return best;
+  }
+  function hurt(S, p, dir) {
+    if (p.inv > 0 || p.down > 0 || p.ai) return false;
+    p.hp--; p.inv = 90; p.kb = dir * 3; p.vy = -2.5; p.g = false;
+    if (p.carry > 0) p.carry = 0;
+    S.shake = 5; ev(S, 'hurt');
+    if (p.hp <= 0) { p.down = 1; ev(S, 'down'); }
+    return true;
+  }
+  function remove(S, pred) { S.ents = S.ents.filter(e => !pred(e)); }
+
+  // ------------------------------------------------------------------ scenes
+  const SC = {};
+
+  // Chapter 1a: tutorial. Jump the tombstones, bite the gate open.
+  SC.field = {
+    intro: 'intro', next: 'forest', chapter: 1,
+    solids: [{ x: 140, y: 200, w: 14, h: 16, k: 'tomb' }, { x: 245, y: 194, w: 16, h: 22, k: 'tomb2' }],
+    plats: [],
+    init(S) { S.v = { gate: 3, open: false }; },
+    goal(S) { return S.v.open ? { k: 'g_go' } : { k: 'g_field' }; },
+    maxX(S) { return S.v.open ? W + 10 : 392; },
+    update(S) {
+      const v = S.v, lead = humans(S)[0];
+      S.hint = lead.x < 110 ? 'h_move' : lead.x < 275 ? 'h_jump' : !v.open ? 'h_bite' : null;
+      if (!v.open) for (const p of humans(S)) {
+        if (bites(p, { x: 398, y: 170, w: 12, h: 46 })) {
+          v.gate--; S.shake = 6; ev(S, 'hit');
+          if (v.gate <= 0) { v.open = true; ev(S, 'door'); }
+        }
+      }
+    }
+  };
+
+  // Chapter 1b: collect 5 orange threads from the branches while bats swoop.
+  SC.forest = {
+    next: 'house', chapter: 1,
+    solids: [],
+    plats: [{ x: 52, y: 178, w: 46 }, { x: 128, y: 150, w: 46 }, { x: 226, y: 178, w: 46 }, { x: 292, y: 142, w: 44 }, { x: 372, y: 176, w: 46 }],
+    init(S) {
+      S.v = { open: false, got: 0, spawn: 120,
+        sc: [{ x: 75, y: 168 }, { x: 150, y: 140 }, { x: 205, y: 206 }, { x: 314, y: 132 }, { x: 395, y: 166 }] };
+    },
+    goal(S) { return S.v.open ? { k: 'g_go' } : { k: 'g_forest', n: S.v.got, of: 5 }; },
+    update(S) {
+      const v = S.v;
+      for (const s of v.sc) {
+        if (s.got) continue;
+        for (const p of humans(S)) if (!p.down && hit(pbox(p), { x: s.x - 5, y: s.y - 5, w: 10, h: 10 })) {
+          s.got = 1; v.got++; ev(S, 'pick');
+          if (v.got >= 5) { v.open = true; ev(S, 'door'); }
+          break;
+        }
+      }
+      const bats = S.ents.filter(e => e.type === 'bat');
+      const max = humans(S).length > 1 ? 3 : 2;
+      if (!v.open && bats.length < max && --v.spawn <= 0) {
+        v.spawn = 200;
+        const left = rnd() < 0.5;
+        S.ents.push({ type: 'bat', x: left ? -10 : W + 10, y: 60, by: 66 + rnd() * 36, dir: left ? 1 : -1, t: 0, st: 0, cd: 120 + rnd() * 100, tx: 0, ty: 0 });
+      }
+      for (const b of bats) {
+        b.t++;
+        if (v.open) b.st = 3;
+        if (b.st === 0) {
+          b.x += b.dir * 1.1;
+          if (b.x < 20 && b.dir < 0) b.dir = 1;
+          if (b.x > W - 20 && b.dir > 0) b.dir = -1;
+          b.y += (b.by + Math.sin(b.t / 14) * 8 - b.y) * 0.1;
+          const t = nearest(S, b.x);
+          if (--b.cd <= 0 && t && Math.abs(t.x - b.x) < 200) { b.st = 1; b.tx = t.x; b.ty = t.y - 14; b.tt = 0; }
+        } else if (b.st === 1) {
+          const dx = b.tx - b.x, dy = b.ty - b.y, d = Math.hypot(dx, dy);
+          if (d < 3 || ++b.tt > 80) b.st = 2;
+          else { b.x += dx / d * 2.5; b.y += dy / d * 2.5; }
+        } else if (b.st === 2) {
+          b.y -= 1.4; b.x += b.dir * 0.8;
+          if (b.y <= b.by) { b.st = 0; b.cd = 150 + rnd() * 120; }
+        } else { b.y -= 2.2; b.x += b.dir; }
+        const box = { x: b.x - 6, y: b.y - 4, w: 12, h: 8 };
+        for (const p of humans(S)) {
+          if (bites(p, box)) { b.dead = 1; ev(S, 'pop'); break; }
+          if (!p.down && hit(pbox(p), box)) hurt(S, p, p.x < b.x ? -1 : 1);
+        }
+      }
+      remove(S, e => e.type === 'bat' && (e.dead || e.y < -20));
+    }
+  };
+
+  // Chapter 2a: bite the crow that carries the key, then open the door.
+  SC.house = {
+    intro: 'house', next: 'hall', chapter: 2,
+    solids: [{ x: 120, y: 198, w: 18, h: 18, k: 'crate' }, { x: 138, y: 182, w: 22, h: 34, k: 'crate2' }],
+    plats: [],
+    init(S) {
+      S.v = { open: false, key: false };
+      S.ents.push({ type: 'crow', x: 220, y: 150, dir: 1, hp: 2, t: 0, st: 0, cd: 220, inv: 0, tx: 0, ty: 0 });
+    },
+    goal(S) { return { k: S.v.key ? 'g_house2' : 'g_house' }; },
+    interact(S, p) {
+      if (Math.abs(p.x - DOOR) > 16 || p.y < G - 2) return false;
+      if (S.v.key) { ev(S, 'door'); complete(S); } else say(S, 'm_locked');
+      return true;
+    },
+    update(S) {
+      const v = S.v;
+      for (const c of S.ents) {
+        if (c.type === 'crow') {
+          c.t++; if (c.inv > 0) c.inv--;
+          const base = c.hp >= 2 ? 150 : 132;
+          if (c.st === 0) {
+            c.x += c.dir * (c.hp >= 2 ? 1.2 : 1.7);
+            if (c.x < 40 && c.dir < 0) c.dir = 1;
+            if (c.x > 330 && c.dir > 0) c.dir = -1;
+            c.y += (base + Math.sin(c.t / 20) * 5 - c.y) * 0.1;
+            const t = nearest(S, c.x);
+            if (--c.cd <= 0 && t && Math.abs(t.x - c.x) < 180) { c.st = 1; c.tx = t.x; c.ty = t.y - 20; c.tt = 0; }
+          } else if (c.st === 1) {
+            const dx = c.tx - c.x, dy = c.ty - c.y, d = Math.hypot(dx, dy);
+            if (d < 3 || ++c.tt > 80) c.st = 2;
+            else { c.x += dx / d * 2.3; c.y += dy / d * 2.3; if (dx) c.dir = dx > 0 ? 1 : -1; }
+          } else if (c.st === 2) {
+            c.y -= 1.3; c.x += c.dir * 0.8;
+            if (c.y <= base) { c.st = 0; c.cd = 170 + rnd() * 120; }
+          } else { c.y -= 2; c.x += c.dir * 1.5; }
+          const box = { x: c.x - 6, y: c.y - 5, w: 12, h: 9 };
+          if (c.st !== 3) for (const p of humans(S)) {
+            if (c.inv <= 0 && bites(p, box)) {
+              c.hp--; c.inv = 40; c.st = 2; ev(S, 'caw');
+              if (c.hp <= 0) { c.st = 3; S.ents.push({ type: 'key', x: c.x, y: c.y, vy: 0 }); }
+              break;
+            }
+            if (c.st === 1 && !p.down && hit(pbox(p), box)) { hurt(S, p, p.x < c.x ? -1 : 1); c.st = 2; }
+          }
+        } else if (c.type === 'key') {
+          c.vy += 0.25; c.y = Math.min(G - 4, c.y + c.vy);
+          for (const p of humans(S)) if (!p.down && hit(pbox(p), { x: c.x - 5, y: c.y - 5, w: 10, h: 10 })) {
+            c.dead = 1; v.key = true; ev(S, 'pick'); say(S, 'm_key'); break;
+          }
+        }
+      }
+      remove(S, e => e.dead || (e.type === 'crow' && e.y < -20));
+    }
+  };
+
+  // Chapter 2b: carry the flame to three candles. Rats run across the floor.
+  SC.hall = {
+    outro: 'hall', next: 'bath', chapter: 2,
+    solids: [{ x: 150, y: 192, w: 36, h: 24, k: 'dresser' }, { x: 340, y: 196, w: 22, h: 20, k: 'chair' }, { x: 362, y: 172, w: 38, h: 44, k: 'shelf' }],
+    plats: [],
+    init(S) {
+      S.v = { open: false, lit: 0, rat: 240, doneT: 0,
+        c: [{ x: 60, y: 192, lit: 1 }, { x: 168, y: 152, lit: 0 }, { x: 312, y: 182, lit: 0 }, { x: 398, y: 130, lit: 0 }] };
+    },
+    goal(S) { return { k: 'g_hall', n: S.v.lit, of: 3 }; },
+    interact(S, p) {
+      const v = S.v;
+      for (const c of v.c) {
+        const dy = p.y - c.y;
+        if (Math.abs(p.x - c.x) > 13 || dy < 0 || dy > 52) continue;
+        if (c.lit) { p.carry = 480; ev(S, 'flame'); }
+        else if (p.carry > 0) {
+          c.lit = 1; v.lit++; ev(S, 'light');
+          if (v.lit >= 3) v.doneT = 70;
+        } else say(S, 'h_flame');
+        return true;
+      }
+      return false;
+    },
+    update(S) {
+      const v = S.v;
+      if (v.doneT > 0) { if (--v.doneT === 0) complete(S); return; }
+      let carrying = false;
+      for (const p of humans(S)) if (p.carry > 0) { carrying = true; if (--p.carry === 0) say(S, 'm_out'); }
+      S.hint = carrying ? 'h_flame2' : 'h_flame';
+      const rats = S.ents.filter(e => e.type === 'rat');
+      if (rats.length < 2 && --v.rat <= 0) {
+        v.rat = 200 + rnd() * 80;
+        const left = rnd() < 0.5;
+        S.ents.push({ type: 'rat', x: left ? -10 : W + 10, dir: left ? 1 : -1, t: 0 });
+      }
+      for (const r of rats) {
+        r.t++; r.x += r.dir * 1.3;
+        const box = { x: r.x - 6, y: G - 6, w: 12, h: 6 };
+        for (const p of humans(S)) {
+          if (bites(p, box)) { r.dead = 1; ev(S, 'pop'); break; }
+          if (!p.down && hit(pbox(p), box)) hurt(S, p, p.x < r.x ? -1 : 1);
+        }
+      }
+      remove(S, e => e.type === 'rat' && (e.dead || e.x < -20 || e.x > W + 20));
+    }
+  };
+
+  // Chapter 3: the Laughing Toilet. Bite it while the lid is open.
+  SC.bath = {
+    intro: 'bath', outro: 'bathout', next: 'bed', chapter: 3,
+    solids: [], plats: [],
+    init(S) {
+      S.v = { open: false };
+      S.ents.push({ type: 'wc', x: 384, hp: 6, st: 'laugh', t: 0, n: 0, inv: 0 });
+    },
+    goal(S) { const wc = S.ents.find(e => e.type === 'wc'); return { k: 'g_bath', n: wc ? 6 - wc.hp : 6, of: 6 }; },
+    maxX() { return 364; },
+    update(S) {
+      const wc = S.ents.find(e => e.type === 'wc');
+      if (!wc) return;
+      const mad = wc.hp <= 3;
+      wc.t++; if (wc.inv > 0) wc.inv--;
+      if (wc.st === 'laugh') {
+        if (wc.t === 1) ev(S, 'laugh');
+        if (wc.t > (mad ? 50 : 70)) { wc.st = 'spit'; wc.t = 0; wc.n = 0; }
+      } else if (wc.st === 'spit') {
+        const every = mad ? 18 : 25, shots = mad ? 5 : 3;
+        if (wc.t % every === 10 && wc.n < shots) {
+          wc.n++;
+          const pl = alive(S), t = pl[(rnd() * pl.length) | 0];
+          const tx = t ? t.x + t.vx * 20 : 200;
+          S.ents.push({ type: 'blob', x: 374, y: 182, vx: (tx - 374) / 53, vy: -4.2 });
+          ev(S, 'spit');
+        }
+        if (wc.t > every * shots + 20) { wc.st = 'flush'; wc.t = 0; }
+      } else if (wc.st === 'flush') {
+        if (wc.t === 1) ev(S, 'flush');
+        if (wc.t === 40 || (mad && wc.t === 78)) { S.ents.push({ type: 'wave', x: 366, vx: -2.8 }); S.shake = 6; }
+        if (wc.t > 105) { wc.st = 'tired'; wc.t = 0; }
+      } else if (wc.st === 'tired') {
+        if (wc.t > (mad ? 100 : 130)) { wc.st = 'laugh'; wc.t = 0; }
+      } else if (wc.st === 'ouch') {
+        if (wc.t > 35) { wc.st = 'laugh'; wc.t = 0; }
+      }
+      const open = wc.st === 'spit' || wc.st === 'tired';
+      for (const p of humans(S)) {
+        if (bites(p, { x: 370, y: 176, w: 28, h: 40 })) {
+          if (open && wc.inv <= 0) {
+            wc.hp--; wc.inv = 30; wc.st = 'ouch'; wc.t = 0; S.shake = 8; ev(S, 'bosshit');
+            if (wc.hp <= 0) { remove(S, e => e.type !== 'wc'); complete(S); return; }
+          } else ev(S, 'clang');
+        }
+      }
+      for (const e of S.ents) {
+        if (e.type === 'blob') {
+          e.x += e.vx; e.y += e.vy; e.vy += 0.18;
+          if (e.y >= G - 3) { e.dead = 1; ev(S, 'splash'); }
+          for (const p of humans(S)) if (!p.down && hit(pbox(p), { x: e.x - 4, y: e.y - 4, w: 8, h: 8 })) { if (hurt(S, p, -1)) e.dead = 1; }
+        } else if (e.type === 'wave') {
+          e.x += e.vx;
+          if (e.x < -20) e.dead = 1;
+          for (const p of humans(S)) if (!p.down && hit(pbox(p), { x: e.x - 7, y: G - 13, w: 14, h: 13 })) hurt(S, p, -1);
+        }
+      }
+      remove(S, e => e.dead);
+    }
+  };
+
+  // Chapter 4a: sneak to the bed. Only move while he snores.
+  SC.bed = {
+    intro: 'bed', outro: 'bedout', next: 'chase', chapter: 4,
+    solids: [], plats: [],
+    init(S) {
+      S.v = { open: false, noise: 0, ph: 'snore', pt: 170, d: [{ x: 140, cd: 0 }, { x: 215, cd: 0 }, { x: 285, cd: 0 }] };
+    },
+    goal() { return { k: 'g_bed' }; },
+    maxX() { return 342; },
+    update(S) {
+      const v = S.v;
+      if (--v.pt <= 0) {
+        if (v.ph === 'snore') { v.ph = 'stir'; v.pt = 40; ev(S, 'huh'); }
+        else if (v.ph === 'stir') { v.ph = 'listen'; v.pt = 80; }
+        else { v.ph = 'snore'; v.pt = 110 + rnd() * 70; }
+      }
+      if (v.ph === 'snore' && S.tick % 70 === 0) ev(S, 'snore');
+      const hs = alive(S);
+      const moving = hs.some(p => Math.abs(p.vx) > 0.2 || !p.g);
+      if (v.ph === 'listen' && moving) v.noise += 2.4;
+      v.noise = Math.max(0, v.noise - 0.12);
+      for (const d of v.d) {
+        if (d.cd > 0) { d.cd--; continue; }
+        for (const p of hs) if (p.g && Math.abs(p.x - d.x) < 6) { v.noise += 40; d.cd = 50; ev(S, 'squeak'); break; }
+      }
+      S.hint = v.ph === 'snore' ? 'h_walk' : 'h_still';
+      if (v.noise >= 100) {
+        v.noise = 0; v.ph = 'snore'; v.pt = 170; ev(S, 'alarm'); say(S, 'm_caught'); S.shake = 10;
+        for (const p of hs) {
+          p.hp--; p.inv = 90; p.x = 30 + p.id * 22; p.y = G; p.vy = 0;
+          if (p.hp <= 0) { p.down = 1; ev(S, 'down'); }
+        }
+        for (const p of S.players) if (p.ai) { p.x = 52; p.y = G; }
+        return;
+      }
+      if (hs.some(p => p.x >= 338)) complete(S);
+    }
+  };
+
+  // Chapter 4b: the chase. The thief throws things; keep up until the arena.
+  SC.chase = {
+    next: 'arena', chapter: 4, running: true,
+    solids: [], plats: [],
+    init(S) { S.v = { open: false, dist: 0, sp: 100, thr: 0 }; for (const p of S.players) p.x = 90 + p.id * 26; },
+    goal(S) { return { k: 'g_chase', bar: S.v.dist / CHASE_LEN }; },
+    minX() { return 10; },
+    maxX() { return 300; },
+    update(S) {
+      const v = S.v, prog = v.dist / CHASE_LEN;
+      v.dist += 2; if (v.thr > 0) v.thr--;
+      if (v.dist >= CHASE_LEN) { complete(S); return; }
+      if (--v.sp <= 0 && prog < 0.95) {
+        v.sp = 105 - 45 * prog + rnd() * 30;
+        const r = rnd(), t = alive(S)[0];
+        if (r < 0.3) S.ents.push({ type: 'log', x: W + 12 });
+        else if (r < 0.55) { S.ents.push({ type: 'pillow', x: 424, y: G - 22, vx: -3.4, vy: -1.5 }); v.thr = 16; ev(S, 'throw'); }
+        else if (r < 0.8 || prog < 0.15) {
+          const tx = (t ? t.x : 150) - 20;
+          S.ents.push({ type: 'lamp', x: 424, y: G - 24, vx: (tx - 424) / 60, vy: -5 }); v.thr = 16; ev(S, 'throw');
+        } else S.ents.push({ type: 'cbat', x: W + 10, y: G - 34 });
+      }
+      for (const e of S.ents) {
+        let box = null;
+        if (e.type === 'log') { e.x -= 2; box = { x: e.x - 7, y: G - 9, w: 14, h: 9 }; }
+        else if (e.type === 'fire') { e.x -= 2; e.t++; box = { x: e.x - 6, y: G - 10, w: 12, h: 10 }; }
+        else if (e.type === 'cbat') { e.x -= 3.6; box = { x: e.x - 6, y: e.y - 4, w: 12, h: 8 }; }
+        else if (e.type === 'pillow') {
+          e.x += e.vx; e.y += e.vy; e.vy += 0.2;
+          if (e.y >= G - 4) { e.y = G - 4; e.vy = -2.6; }
+          box = { x: e.x - 6, y: e.y - 4, w: 12, h: 8 };
+        } else if (e.type === 'lamp') {
+          e.x += e.vx; e.y += e.vy; e.vy += 0.18;
+          if (e.y >= G - 4) { e.type = 'fire'; e.t = 0; ev(S, 'smash'); continue; }
+          box = { x: e.x - 4, y: e.y - 4, w: 8, h: 8 };
+        }
+        if (!box) continue;
+        if (e.x < -20) { e.dead = 1; continue; }
+        for (const p of humans(S)) if (!p.down && hit(pbox(p), box)) {
+          if (hurt(S, p, -1)) { p.kb = -4; p.stun = 20; if (e.type === 'pillow' || e.type === 'cbat' || e.type === 'lamp') e.dead = 1; }
+        }
+      }
+      remove(S, e => e.dead);
+    }
+  };
+
+  // Chapter 5: the arena. Three phases against leven = 1000, before the sun is up.
+  SC.arena = {
+    intro: 'arena', outro: 'ending', chapter: 5,
+    solids: [], plats: [],
+    init(S) {
+      S.v = { open: false, sun: 0, burn: false };
+      S.ents.push({ type: 'thief', x: 400, y: G, vx: 0, vy: 0, g: true, face: -1, hp: 1000, st: 'run', t: 0, n: 0, inv: 0, hits: 0, stomp: false });
+    },
+    goal(S) { return { k: 'g_arena' }; },
+    update(S) {
+      const v = S.v, th = S.ents.find(e => e.type === 'thief');
+      v.sun += 1 / SUN_FRAMES;
+      if (v.sun >= 1 && !v.burn) {
+        v.burn = true; ev(S, 'burn');
+        for (const p of humans(S)) if (!p.down) { p.hp = 0; p.down = 1; }
+      }
+      if (!th) return;
+      const ph = th.hp > 700 ? 1 : th.hp > 350 ? 2 : 3;
+      const tg = nearest(S, th.x);
+      th.t++; if (th.inv > 0) th.inv--;
+      const d = tg ? th.x - tg.x : 200;
+      if (th.st === 'run') {
+        const dir = d >= 0 ? 1 : -1;
+        th.vx = Math.abs(d) < 110 ? dir * (ph === 1 ? 1.7 : 1.9) : 0;
+        th.face = th.vx ? dir : -dir;
+        const cornered = (th.x < 26 && dir < 0) || (th.x > W - 26 && dir > 0);
+        if (cornered && Math.abs(d) < 60 && th.g) { th.vy = -6.4; th.g = false; th.vx = -dir * 3.2; th.st = 'leap'; ev(S, 'jump'); }
+        else if (th.t > (ph === 1 ? 110 : 80) && th.g) { th.st = 'atk'; th.t = 0; th.n = 0; th.vx = 0; }
+      } else if (th.st === 'leap') {
+        if (th.g) { th.st = 'run'; th.vx = 0; }
+      } else if (th.st === 'atk') {
+        th.vx = 0; th.face = d >= 0 ? -1 : 1;
+        const L = ph === 1 ? 55 : ph === 2 ? 50 : 70, cnt = ph === 3 ? 2 : 3;
+        const tx = tg ? tg.x : 240;
+        if (th.t % L === 25 && th.n < cnt) {
+          if (ph === 1) { S.ents.push({ type: 'rock', x: th.x, y: th.y - 22, vx: (tx - th.x) / 55, vy: -4.6 }); ev(S, 'throw'); }
+          else if (ph === 2) { S.ents.push({ type: 'fball', x: th.x + th.face * 8, y: G - 8, vx: th.face * 3, t: 0 }); ev(S, 'fire'); }
+          else if (th.n % 2 === 0) { th.vy = -7; th.g = false; th.stomp = true; ev(S, 'jump'); }
+          else { for (const o of [-44, 0, 44]) S.ents.push({ type: 'rock', x: th.x, y: th.y - 22, vx: (tx + o - th.x) / 55, vy: -4.6 }); ev(S, 'throw'); }
+          th.n++;
+        }
+        if (th.n >= cnt && th.t % L === L - 1) { th.st = 'pant'; th.t = 0; th.hits = 0; }
+      } else if (th.st === 'pant') {
+        th.vx = 0;
+        if (th.t > (ph === 1 ? 160 : ph === 2 ? 130 : 105) || th.hits >= 2) { th.st = 'run'; th.t = 0; }
+      }
+      th.x = Math.max(16, Math.min(W - 16, th.x + th.vx));
+      th.vy += 0.32; th.y += th.vy;
+      if (th.y >= G) {
+        th.y = G; th.vy = 0;
+        if (!th.g && th.stomp) {
+          th.stomp = false; S.shake = 10; ev(S, 'thud');
+          S.ents.push({ type: 'shock', x: th.x - 8, vx: -2.6 }, { type: 'shock', x: th.x + 8, vx: 2.6 });
+        }
+        th.g = true;
+      }
+      for (const p of humans(S)) {
+        if (th.inv <= 0 && bites(p, { x: th.x - 5, y: th.y - 26, w: 10, h: 26 })) {
+          th.hp -= 60; th.inv = 35; th.hits++; S.shake = 6; ev(S, 'bosshit');
+          th.x = Math.max(16, Math.min(W - 16, th.x + p.face * 6));
+          if (th.hp <= 0) { th.hp = 0; remove(S, e => e.type !== 'thief'); complete(S); return; }
+          // two bites in a row and he jumps away
+          if (th.hits >= 2 && th.g) {
+            const away = (th.x - p.x >= 0 ? 1 : -1) * (th.x > W - 80 ? -1 : th.x < 80 ? -1 : 1);
+            th.vy = -6.2; th.g = false; th.vx = away * 3; th.st = 'leap'; th.t = 0; th.hits = 0; th.stomp = false;
+          }
+        }
+      }
+      for (const e of S.ents) {
+        let box = null;
+        if (e.type === 'rock') {
+          e.x += e.vx; e.y += e.vy; e.vy += 0.18;
+          if (e.y >= G - 3) { e.dead = 1; ev(S, 'thud'); }
+          box = { x: e.x - 4, y: e.y - 4, w: 8, h: 8 };
+        } else if (e.type === 'fball') { e.x += e.vx; e.t++; box = { x: e.x - 5, y: e.y - 5, w: 10, h: 10 }; }
+        else if (e.type === 'shock') { e.x += e.vx; box = { x: e.x - 6, y: G - 10, w: 12, h: 10 }; }
+        if (!box) continue;
+        if (e.x < -20 || e.x > W + 20) e.dead = 1;
+        for (const p of humans(S)) if (!p.down && hit(pbox(p), box)) {
+          if (hurt(S, p, e.vx < 0 ? -1 : 1) && e.type === 'rock') e.dead = 1;
+        }
+      }
+      remove(S, e => e.dead);
+    }
+  };
+
+  // ------------------------------------------------------------------ flow
+  function newGame(opts) {
+    opts = opts || {};
+    const S = { tick: 0, mode: 'play', scene: null, ents: [], v: {}, cut: null, evs: [], evN: 0, msg: null, msgT: 0,
+      hint: null, shake: 0, overT: 0, overWhy: '', endT: 0, downT: 0, paused: false, two: opts.players === 2,
+      players: [mkPlayer(0), mkPlayer(1)], pp: [{ j: false, a: false }, { j: false, a: false }] };
+    S.players[1].ai = !S.two;
+    startScene(S, opts.scene || 'field', true);
+    return S;
+  }
+
+  function startScene(S, id, first) {
+    S.scene = id; S.ents = []; S.v = {}; S.hint = null; S.msg = null; S.msgT = 0;
+    S.mode = 'play'; S.overT = 0; S.downT = 0; S.cut = null;
+    for (const p of S.players) {
+      const ai = p.ai;
+      Object.assign(p, mkPlayer(p.id));
+      p.ai = ai;
+    }
+    SC[id].init(S);
+    ev(S, 'scene');
+    if (first && SC[id].intro) startCut(S, SC[id].intro, 'play');
+  }
+
+  function startCut(S, id, after) { S.cut = { id, i: 0, t: 0, after }; S.mode = 'cut'; S.hint = null; }
+
+  function complete(S) {
+    if (S.mode !== 'play') return;
+    const sc = SC[S.scene];
+    ev(S, 'win');
+    if (sc.outro) startCut(S, sc.outro, sc.next ? 'next' : 'end');
+    else startScene(S, sc.next, true);
+  }
+
+  function pressed(S, inputs) {
+    let any = false;
+    S.players.forEach((p, i) => {
+      const inp = (!p.ai && inputs[i]) || ZERO, pp = S.pp[i];
+      if ((inp.jump && !pp.j) || (inp.act && !pp.a)) any = true;
+      pp.j = !!inp.jump; pp.a = !!inp.act;
+    });
+    return any;
+  }
+
+  function stepCut(S, inputs) {
+    const c = S.cut, steps = DDN.CUTS[c.id], st = steps[c.i];
+    c.t++;
+    if (c.t === 1) {
+      if (st.fx) ev(S, st.fx);
+      if (st.shake) S.shake = 24;
+      if (st.card) ev(S, 'card');
+    }
+    const press = pressed(S, inputs);
+    let adv = false;
+    if (st.card) adv = (press && c.t > 30) || c.t > 210;
+    else if (press && c.t > 8) {
+      if (c.t < st.len * 1.2 + 6) c.t = 100000; else adv = true;
+    }
+    if (!adv) return;
+    c.i++; c.t = 0;
+    if (c.i < steps.length) return;
+    S.cut = null;
+    for (const p of S.players) { p.pj = true; p.pa = true; }
+    if (c.after === 'play') S.mode = 'play';
+    else if (c.after === 'next') startScene(S, SC[S.scene].next, true);
+    else { S.mode = 'end'; S.endT = 0; ev(S, 'end'); }
+  }
+
+  // The second zombie follows the first one when playing alone.
+  function aiInput(S, p) {
+    const l = S.players[0];
+    if (l.down) return ZERO;
+    const d = l.x - l.face * 20 - p.x;
+    const mx = Math.abs(d) > 5 ? (d > 0 ? 1 : -1) : 0;
+    let j = false;
+    if (p.g) {
+      if (l.g && l.y < p.y - 10 && Math.abs(l.x - p.x) < 70) j = true;
+      if (mx && p.blk) j = true;
+      if (l.jumped && Math.abs(d) < 40) j = true;
+    }
+    return { mx, jump: j && !p.pj, act: false };
+  }
+
+  function stepPlayer(S, p, inp, sc) {
+    p.jumped = false;
+    if (p.inv > 0) p.inv--;
+    if (p.down > 0) { p.vx = 0; p.vy += 0.32; p.y = Math.min(G, p.y + p.vy); return; }
+    const jp = inp.jump && !p.pj, ap = inp.act && !p.pa;
+    p.pj = !!inp.jump; p.pa = !!inp.act;
+    let mx = Math.max(-1, Math.min(1, inp.mx || 0));
+    if (p.stun > 0) { p.stun--; mx = 0; }
+    p.vx = mx * 1.5 + p.kb;
+    p.kb *= 0.85; if (Math.abs(p.kb) < 0.1) p.kb = 0;
+    if (mx) p.face = mx > 0 ? 1 : -1;
+    if (sc.running && !mx) p.face = 1;
+    if (jp && p.g) { p.vy = -5.4; p.g = false; p.jumped = true; ev(S, 'jump'); }
+    if (ap && !p.ai) {
+      if (!(sc.interact && sc.interact(S, p)) && p.bite <= 0) { p.bite = 20; p.bh = false; ev(S, 'bite'); }
+    }
+    if (S.mode !== 'play') return;
+    if (p.bite > 0) p.bite--;
+
+    // sideways, blocked by solid things
+    let nx = p.x + p.vx;
+    p.blk = false;
+    for (const s of sc.solids) {
+      if (p.y > s.y + 1 && p.y - 26 < s.y + s.h && nx + 5 > s.x && nx - 5 < s.x + s.w) {
+        nx = p.x < s.x + s.w / 2 ? s.x - 5 : s.x + s.w + 5;
+        p.blk = true;
+      }
+    }
+    const lo = sc.minX ? sc.minX(S) : 10;
+    const hi = sc.maxX ? sc.maxX(S) : (S.v.open ? W + 10 : W - 6);
+    p.x = Math.max(lo, Math.min(hi, nx));
+
+    // up and down, landing on the ground, on solid things and on branches
+    const oy = p.y;
+    p.vy = Math.min(6, p.vy + 0.32);
+    p.y += p.vy; p.g = false;
+    if (p.y >= G) { p.y = G; p.vy = 0; p.g = true; }
+    if (p.vy >= 0) {
+      for (const s of sc.solids.concat(sc.plats)) {
+        if (oy <= s.y + 0.01 && p.y >= s.y && p.x + 5 > s.x && p.x - 5 < s.x + s.w) { p.y = s.y; p.vy = 0; p.g = true; }
+      }
+    }
+  }
+
+  function step(S, inputs) {
+    if (S.paused) return;
+    S.tick++;
+    if (S.shake > 0) S.shake--;
+    if (S.msgT > 0) S.msgT--;
+    if (S.mode === 'cut') { stepCut(S, inputs); return; }
+    if (S.mode === 'end') { S.endT++; return; }
+    if (S.mode === 'over') {
+      S.overT++;
+      if (pressed(S, inputs) && S.overT > 45) startScene(S, S.scene, false);
+      return;
+    }
+    const sc = SC[S.scene];
+    for (const p of S.players) {
+      stepPlayer(S, p, p.ai ? aiInput(S, p) : (inputs[p.id] || ZERO), sc);
+      if (S.mode !== 'play') return;
+    }
+    sc.update(S);
+    if (S.mode !== 'play' || S.scene !== sc.id) return;
+
+    // fallen zombies: a partner gets you back up, otherwise the scene restarts
+    const hs = humans(S), up = hs.filter(p => p.down === 0);
+    for (const p of hs) {
+      if (p.down > 0) { p.down++; if (up.length && p.down > 240 && !S.v.burn) { p.down = 0; p.hp = 2; p.inv = 120; ev(S, 'pick'); } }
+    }
+    if (!up.length) {
+      if (++S.downT > 50) { S.mode = 'over'; S.overT = 0; S.overWhy = S.v.burn ? 'sun' : ''; ev(S, 'over'); }
+      return;
+    }
+    if (S.v.open && up.some(p => p.x >= W - 7)) complete(S);
+  }
+
+  // Shift+X and Shift+B from the 2016 game: jump a scene forward or back.
+  function skip(S, dir) {
+    const i = ORDER.indexOf(S.scene) + dir;
+    if (i < 0) return;
+    if (i >= ORDER.length) { startCut(S, 'ending', 'end'); return; }
+    startScene(S, ORDER[i], true);
+  }
+
+  for (const id in SC) SC[id].id = id;
+  DDN.sim = { W, H, G, ORDER, CHAPTERS, DOOR, CHASE_LEN, SC, newGame, startScene, step, skip, humans, biteBox };
+  if (typeof module !== 'undefined') module.exports = DDN;
+})(typeof window !== 'undefined' ? window : globalThis);
