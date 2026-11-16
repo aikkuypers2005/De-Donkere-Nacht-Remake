@@ -533,7 +533,7 @@
                 if (xs.every(o => Math.abs(o - x) > 28)) break;
               }
               xs.push(x);
-              S.ents.push({ type: 'stone', x, y: 70, vy: -2 });
+              S.ents.push({ type: 'stone', x, y: 108, vy: -2.5 });        // from the top row of the stands
             }
             for (const p of humans(S)) if (!p.down && p.y > G - 20 && Math.abs(p.x - (g.x + g.face * 6)) < 18) hurt(S, p, p.x < g.x ? -1 : 1);
           }

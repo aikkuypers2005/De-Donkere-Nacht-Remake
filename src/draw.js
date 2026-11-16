@@ -149,7 +149,7 @@
     for (const [lx, up] of legs) { P(lx, -7 - up, 3, 7, TH.dark); P(lx, -1 - up, 4, 1, '#3a2418'); }
     if (o.roll) { P(-9, -24 + b, 3, 14, '#dccaa0'); P(-9, -24 + b, 3, 1, '#a08860'); P(-9, -11 + b, 3, 1, '#a08860'); }
     P(-5, -19 + b, 10, 12, TH.suit); P(-5, -19 + b, 2, 12, TH.dark); P(-1, -19 + b, 1, 12, TH.dark);
-    if (o.pl) { P(-7, -10 + b, 3, 3, '#f4efe0'); P(-6, -9 + b, 1, 1, '#c8b494'); }
+    if (o.pl) { P(-8, -12 + b, 4, 4, '#ffffff'); P(-7, -11 + b, 2, 2, '#e4d4bc'); }
     P(-4, -28 + b, 8, 9, sk.skin); P(-3, -29 + b, 6, 1, sk.skin); P(-4, -28 + b, 2, 9, sk.sdark);
     if (o.arms === 'ouch') { P(1, -27 + b, 3, 3, '#fff'); P(2, -26 + b, 1, 1, '#111'); }
     else { P(1, -26 + b, 2, 2, '#fff'); P(2, -25 + b, 1, 1, '#111'); }
@@ -624,7 +624,7 @@
 
   function drawScene(S, t) {
     const v = S.v, id = S.scene, sc = sim.SC[id];
-    bg(id === 'chase' ? 'field' : id);
+    bg(id === 'chase' ? 'field' : id === 'giant' ? 'arena' : id);
     if (id === 'chase') chaseBack(v);
     if (id === 'field') {
       blit('grave', 30, G); blit('grave', 52, G);
